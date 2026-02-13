@@ -1,0 +1,120 @@
+.preferences-page {
+  max-width: 600px;
+}
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  color: var(--color-charcoal);
+  margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+  font-size: 0.9375rem;
+  color: var(--color-brown);
+  margin-bottom: 2rem;
+}
+
+.pref-section {
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-charcoal);
+  margin-bottom: 0.25rem;
+}
+
+.section-desc {
+  font-size: 0.875rem;
+  color: var(--color-brown);
+  margin-bottom: 1rem;
+}
+
+.meal-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.meal-counts label,
+.macro-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-brown);
+}
+
+.meal-counts input,
+.macro-grid input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(196, 167, 125, 0.4);
+  border-radius: var(--radius);
+  background: var(--color-cream);
+  font-size: 1rem;
+}
+
+.people-input {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.people-input input {
+  width: 80px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(196, 167, 125, 0.4);
+  border-radius: var(--radius);
+  background: var(--color-cream);
+  font-size: 1rem;
+}
+
+.dietary-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dietary-chip {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid rgba(196, 167, 125, 0.5);
+  background: var(--color-cream);
+  color: var(--color-brown);
+  transition: all 0.15s;
+}
+
+.dietary-chip:hover {
+  border-color: var(--color-terracotta);
+  color: var(--color-terracotta-dark);
+}
+
+.dietary-chip.active {
+  background: var(--color-terracotta);
+  color: var(--color-cream);
+  border-color: var(--color-terracotta);
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.pref-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.loading {
+  text-align: center;
+  color: var(--color-brown);
+  padding: 2rem;
+}

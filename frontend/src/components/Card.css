@@ -1,0 +1,20 @@
+.card {
+  background: var(--color-warm-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  border: 1px solid rgba(196, 167, 125, 0.2);
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--color-charcoal);
+  margin-bottom: 0.75rem;
+}
+
+.card-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-brown);
+  margin-bottom: 1rem;
+}

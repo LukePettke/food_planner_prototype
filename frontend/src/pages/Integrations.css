@@ -1,0 +1,62 @@
+.integrations-page {
+  max-width: 560px;
+}
+
+.integration-card {
+  margin-bottom: 1.5rem;
+}
+
+.integration-header {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.integration-icon {
+  font-size: 2.5rem;
+}
+
+.integration-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-charcoal);
+  margin-bottom: 0.25rem;
+}
+
+.integration-desc {
+  font-size: 0.9375rem;
+  color: var(--color-brown);
+}
+
+.integration-note {
+  font-size: 0.875rem;
+  color: var(--color-sage);
+  font-style: italic;
+}
+
+.apps-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.app-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--color-cream);
+  border: 1px solid rgba(196, 167, 125, 0.4);
+  border-radius: var(--radius);
+  color: var(--color-charcoal);
+  font-size: 0.9375rem;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.app-link:hover {
+  border-color: var(--color-terracotta);
+  background: rgba(196, 167, 125, 0.1);
+  text-decoration: none;
+  color: var(--color-charcoal);
+}

@@ -1,0 +1,71 @@
+.meal-selection-page {
+  max-width: 680px;
+}
+
+.slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.slot-card {
+  padding: 1.25rem;
+}
+
+.slot-header {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-charcoal);
+  margin-bottom: 1rem;
+}
+
+.meal-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.meal-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border: 2px solid rgba(196, 167, 125, 0.3);
+  border-radius: var(--radius);
+  background: var(--color-cream);
+  color: var(--color-charcoal);
+  transition: all 0.15s;
+}
+
+.meal-option:hover {
+  border-color: var(--color-terracotta);
+  background: rgba(196, 167, 125, 0.08);
+}
+
+.meal-option.selected {
+  border-color: var(--color-terracotta);
+  background: rgba(196, 167, 125, 0.15);
+}
+
+.option-name {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.option-desc {
+  font-size: 0.875rem;
+  color: var(--color-brown);
+  margin-bottom: 0.25rem;
+}
+
+.option-meta {
+  font-size: 0.75rem;
+  color: var(--color-sage);
+}
+
+.selection-actions {
+  display: flex;
+  gap: 1rem;
+}
