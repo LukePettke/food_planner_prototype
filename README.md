@@ -11,7 +11,8 @@ A full-stack web app that uses AI to generate personalized meal plans. Customize
   - Macronutrients per serving: protein, carbs, fat (grams)
 
 - **AI Meal Planning**
-  - Generate meal options for each meal slot using AI (OpenAI)
+  - Generate 10 meal options per slot using AI (OpenAI)
+  - Dish photos with each option (Unsplash, or placeholder)
   - Pick one meal per slot
   - Get recipes for selected meals
   - Consolidated shopping list
@@ -51,6 +52,7 @@ cd ../frontend && npm install
 Copy `backend/.env.example` to `backend/.env` and fill in:
 
 - **OPENAI_API_KEY** (required for AI) — get from [platform.openai.com](https://platform.openai.com/api-keys)
+- **UNSPLASH_ACCESS_KEY** (optional) — from [Unsplash Developers](https://unsplash.com/developers) for meal photos; without it, placeholders are used
 - **GOOGLE_CLIENT_ID** and **GOOGLE_CLIENT_SECRET** (optional) — from [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials → Create OAuth 2.0 Client ID (Web application). Add `http://localhost:5173/integrations` as an authorized redirect URI.
 
 ### 3. Run the app

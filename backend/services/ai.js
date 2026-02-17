@@ -23,7 +23,12 @@ function buildPrompt(type, preferences, context = {}) {
   if (type === 'meal_suggestions') {
     const { mealType, count, weekStart } = context;
     const mealLabel = mealType.charAt(0).toUpperCase() + mealType.slice(1);
-    return `You are a nutritionist and meal planning expert. Generate exactly ${count} distinct ${mealLabel.toLowerCase()} meal options for a weekly meal plan starting ${weekStart}.
+    return `You are a nutritionist and meal planning expert. Generate exactly ${count} UNIQUE ${mealLabel.toLowerCase()} meal options for the week of ${weekStart}.
+
+CRITICAL RULES:
+- Every option must be completely different - NO duplicate or near-duplicate meal names (e.g. do not include both "Scrambled Eggs" and "Scrambled Eggs with Toast")
+- Vary the cuisines, cooking styles, and ingredients across all ${count} options
+- Tailor options to feel fresh for this specific week - vary suggestions based on season/context
 
 CONSTRAINTS:
 - Dietary restrictions: ${dietary || 'None'}
@@ -68,17 +73,35 @@ Return ONLY valid JSON.`;
   return '';
 }
 
-function mockMealSuggestions(mealType, count) {
-  const bases = {
-    breakfast: ['Oatmeal', 'Eggs Benedict', 'Smoothie Bowl', 'Avocado Toast', 'Greek Yogurt Parfait', 'Pancakes', 'Shakshuka'],
-    lunch: ['Caesar Salad', 'Grilled Chicken Wrap', 'Buddha Bowl', 'Tom Yum Soup', 'Quinoa Salad', 'Tuna Poke Bowl', 'Falafel Plate'],
-    dinner: ['Salmon Teriyaki', 'Beef Stir Fry', 'Pasta Primavera', 'Chicken Curry', 'Tacos', 'Risotto', 'Sheet Pan Chicken'],
+function mockMealSuggestions(mealType, count, weekStart = '') {
+  const pools = {
+    breakfast: [
+      'Oatmeal with Berries', 'Eggs Benedict', 'Smoothie Bowl', 'Avocado Toast', 'Greek Yogurt Parfait',
+      'Pancakes with Maple Syrup', 'Shakshuka', 'Breakfast Burrito', 'French Toast', 'Chia Pudding',
+      'Acai Bowl', 'Egg Muffins', 'Overnight Oats', 'Breakfast Quesadilla', 'Granola with Fruit',
+    ],
+    lunch: [
+      'Caesar Salad', 'Grilled Chicken Wrap', 'Buddha Bowl', 'Tom Yum Soup', 'Quinoa Salad',
+      'Tuna Poke Bowl', 'Falafel Plate', 'Cobb Salad', 'Turkey Club', 'Miso Soup with Rice',
+      'Caprese Sandwich', 'Lentil Soup', 'Mediterranean Bowl', 'Pho', 'Sushi Roll Combo',
+    ],
+    dinner: [
+      'Salmon Teriyaki', 'Beef Stir Fry', 'Pasta Primavera', 'Chicken Curry', 'Fish Tacos',
+      'Risotto', 'Sheet Pan Chicken', 'Grilled Steak', 'Pad Thai', 'Vegetable Stir Fry',
+      'Lamb Chops', 'Mushroom Risotto', 'Shrimp Scampi', 'Biryani', 'Stuffed Peppers',
+    ],
   };
-  const arr = bases[mealType] || bases.dinner;
-  return Array.from({ length: count }, (_, i) => ({
-    name: `${arr[i % arr.length]} #${i + 1}`,
+  const arr = pools[mealType] || pools.dinner;
+  const seed = weekStart ? weekStart.split('').reduce((s, c) => s + c.charCodeAt(0), 0) : Date.now();
+  const shuffled = [...arr].sort((a, b) => {
+    const ha = (seed + a.split('').reduce((s, c) => s + c.charCodeAt(0), 0)) % 1000;
+    const hb = (seed + b.split('').reduce((s, c) => s + c.charCodeAt(0), 0)) % 1000;
+    return ha - hb;
+  });
+  return shuffled.slice(0, count).map((n) => ({
+    name: n,
     description: `Delicious ${mealType} option.`,
-    estimatedPrepMinutes: 20 + (i % 15),
+    estimatedPrepMinutes: 20 + (n.length % 15),
     tags: ['balanced'],
   }));
 }
@@ -107,23 +130,64 @@ function mockShoppingList(recipes) {
   return Array.from(seen.values()).map((i) => ({ name: i.name, totalAmount: i.amount, unit: i.unit, category: i.category }));
 }
 
+function deduplicateOptions(options) {
+  const seen = new Set();
+  return options.filter((opt) => {
+    const key = (opt?.name || '').toLowerCase().trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function getMealSuggestions(preferences, mealType, count, weekStart) {
   if (!openai.apiKey) {
-    return mockMealSuggestions(mealType, count);
+    return mockMealSuggestions(mealType, count, weekStart);
   }
   try {
     const prompt = buildPrompt('meal_suggestions', preferences, { mealType, count, weekStart });
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.8,
+      temperature: 0.9,
     });
     const text = completion.choices[0]?.message?.content?.trim() || '[]';
     const cleaned = text.replace(/^```json\s*|\s*```$/g, '');
-    return JSON.parse(cleaned);
+    let options = JSON.parse(cleaned);
+    if (!Array.isArray(options)) options = [];
+    const unique = deduplicateOptions(options);
+    return unique.slice(0, count);
   } catch (err) {
     console.error('AI meal suggestions error:', err.message);
-    return mockMealSuggestions(mealType, count);
+    return mockMealSuggestions(mealType, count, weekStart);
+  }
+}
+
+export async function getImageSearchQueries(mealNames, mealType) {
+  if (!openai.apiKey || !Array.isArray(mealNames) || mealNames.length === 0) {
+    return mealNames.map((n) => `${(n && typeof n === 'object' && n.name) || n || ''} food dish`);
+  }
+  try {
+    const list = mealNames.map((n) => n.name || n).join('\n');
+    const prompt = `For each meal name below, output a SHORT search phrase (2-4 words) optimized for finding a beautiful food stock photo. Output a JSON array of strings in the same order, e.g. ["grilled salmon teriyaki", "avocado toast breakfast"].
+
+Meal type: ${mealType}
+Meals:
+${list}
+
+Return ONLY the JSON array, no markdown.`;
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+    });
+    const text = completion.choices[0]?.message?.content?.trim() || '[]';
+    const cleaned = text.replace(/^```json\s*|\s*```$/g, '');
+    const queries = JSON.parse(cleaned);
+    return Array.isArray(queries) ? queries : mealNames.map((n) => `${n.name || n} food`);
+  } catch (err) {
+    console.error('AI image search query error:', err.message);
+    return mealNames.map((n) => `${n?.name || n} food dish`);
   }
 }
 

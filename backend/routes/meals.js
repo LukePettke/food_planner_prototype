@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getDb } from '../db.js';
 import { randomUUID } from 'crypto';
 import { getMealSuggestions, getRecipes, getShoppingList } from '../services/ai.js';
+import { addImagesToOptions } from '../services/images.js';
 import { format, addDays, startOfWeek } from 'date-fns';
 
 const router = Router();
@@ -26,42 +27,22 @@ function loadPreferences() {
   };
 }
 
-// Generate meal slots for the week
-function getMealSlots(prefs) {
-  const slots = [];
-  const mealTypes = [
-    { type: 'breakfast', count: prefs.breakfasts_per_week },
-    { type: 'lunch', count: prefs.lunches_per_week },
-    { type: 'dinner', count: prefs.dinners_per_week },
-  ];
-  for (const { type, count } of mealTypes) {
-    for (let i = 0; i < count; i++) {
-      slots.push({ mealType: type, dayIndex: i % 7 });
-    }
-  }
-  return slots;
-}
-
-// POST /api/meals/suggest
+// POST /api/meals/suggest - generates 10 options per meal type (breakfast, lunch, dinner)
 router.post('/suggest', async (req, res) => {
   try {
     const { weekStart } = req.body;
     const prefs = loadPreferences();
     const start = weekStart ? new Date(weekStart) : startOfWeek(new Date(), { weekStartsOn: 1 });
     const weekLabel = format(start, 'MMM d, yyyy');
+    const dayLabels = [0, 1, 2, 3, 4, 5, 6].map((d) => format(addDays(start, d), 'EEE'));
 
-    const slots = getMealSlots(prefs);
-    const results = [];
+    const mealTypes = ['breakfast', 'lunch', 'dinner'];
+    const results = { dayLabels, weekStart: format(start, 'yyyy-MM-dd') };
 
-    for (const slot of slots) {
-      const count = 3; // 3 options per meal
-      const suggestions = await getMealSuggestions(prefs, slot.mealType, count, weekLabel);
-      results.push({
-        mealType: slot.mealType,
-        dayIndex: slot.dayIndex,
-        day: format(addDays(start, slot.dayIndex), 'EEEE'),
-        options: suggestions,
-      });
+    for (const mealType of mealTypes) {
+      const suggestions = await getMealSuggestions(prefs, mealType, 10, weekLabel);
+      const optionsWithImages = await addImagesToOptions(suggestions, mealType);
+      results[`${mealType}Options`] = optionsWithImages;
     }
 
     const planId = randomUUID();
@@ -81,10 +62,25 @@ router.post('/suggest', async (req, res) => {
 // POST /api/meals/select
 router.post('/select', async (req, res) => {
   try {
-    const { planId, selections } = req.body; // selections: [{ mealType, dayIndex, meal }]
-    if (!planId || !Array.isArray(selections)) {
-      return res.status(400).json({ error: 'planId and selections required' });
+    const { planId, selections: rawSelections } = req.body;
+    // Accept either: selections: [{ mealType, dayIndex, meal }] OR assignments: { breakfast: { 0: meal }, ... }
+    let selections;
+    if (Array.isArray(rawSelections)) {
+      selections = rawSelections;
+    } else if (rawSelections && typeof rawSelections === 'object' && rawSelections.assignments) {
+      const a = rawSelections.assignments;
+      selections = [];
+      for (const mealType of ['breakfast', 'lunch', 'dinner']) {
+        const days = a[mealType] || {};
+        for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+          const meal = days[dayIndex];
+          if (meal) selections.push({ mealType, dayIndex, meal });
+        }
+      }
+    } else {
+      return res.status(400).json({ error: 'planId and selections or assignments required' });
     }
+    if (!planId) return res.status(400).json({ error: 'planId required' });
 
     const prefs = loadPreferences();
     const db = getDb();
@@ -125,6 +121,44 @@ router.post('/select', async (req, res) => {
     });
   } catch (err) {
     console.error('Meal select error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/meals/refresh-images/:planId - re-fetch photos for existing plan
+router.post('/refresh-images/:planId', async (req, res) => {
+  try {
+    const db = getDb();
+    const plan = db.prepare('SELECT * FROM meal_plans WHERE id = ?').get(req.params.planId);
+    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+
+    const meals = JSON.parse(plan.meals || '{}');
+    if (!meals.breakfastOptions) return res.status(400).json({ error: 'Plan format not supported for image refresh' });
+
+    for (const mealType of ['breakfast', 'lunch', 'dinner']) {
+      const opts = meals[`${mealType}Options`] || [];
+      if (opts.length) {
+        meals[`${mealType}Options`] = await addImagesToOptions(opts, mealType);
+      }
+    }
+
+    db.prepare('UPDATE meal_plans SET meals = ? WHERE id = ?').run(JSON.stringify(meals), req.params.planId);
+    plan.meals = meals;
+    const selected = db.prepare('SELECT * FROM selected_meals WHERE plan_id = ?').all(req.params.planId);
+    const grocery = db.prepare('SELECT * FROM grocery_lists WHERE plan_id = ?').get(req.params.planId);
+    res.json({
+      ok: true,
+      plan,
+      selectedMeals: selected.map((s) => ({
+        ...s,
+        recipe: JSON.parse(s.recipe || '{}'),
+        ingredients: JSON.parse(s.ingredients || '[]'),
+        macronutrients: JSON.parse(s.macronutrients || '{}'),
+      })),
+      groceryList: grocery ? JSON.parse(grocery.items || '[]') : [],
+    });
+  } catch (err) {
+    console.error('Refresh images error:', err);
     res.status(500).json({ error: err.message });
   }
 });

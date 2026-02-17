@@ -20,6 +20,7 @@ export const meals = {
   suggest: (weekStart) => fetchApi('/meals/suggest', { method: 'POST', body: JSON.stringify({ weekStart }) }),
   select: (planId, selections) => fetchApi('/meals/select', { method: 'POST', body: JSON.stringify({ planId, selections }) }),
   getPlan: (planId) => fetchApi(`/meals/plan/${planId}`),
+  refreshImages: (planId) => fetchApi(`/meals/refresh-images/${planId}`, { method: 'POST', body: '{}' }),
 };
 
 export const calendar = {

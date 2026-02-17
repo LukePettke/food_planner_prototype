@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { meals as api } from '../api';
-import { format, startOfWeek, addDays } from 'date-fns';
+import { format, startOfWeek } from 'date-fns';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import './MealSuggestions.css';
@@ -56,23 +56,13 @@ export default function MealSuggestions() {
         </Button>
       </Card>
 
-      {suggestions.length > 0 && (
+      {((Array.isArray(suggestions) && suggestions.length > 0) || (suggestions?.breakfastOptions)) && (
         <>
           <div className="suggestions-preview">
             <h2 className="preview-title">Meal Options Generated</h2>
             <p className="preview-desc">
-              You have {suggestions.length} meal slots with options. Click below to pick your meals for each slot.
+              10 options each for breakfast, lunch, and dinner. Drag meals to days on the next screen.
             </p>
-            <div className="slots-summary">
-              {suggestions.slice(0, 9).map((s, i) => (
-                <span key={i} className="slot-badge">
-                  {s.mealType} · {s.day}
-                </span>
-              ))}
-              {suggestions.length > 9 && (
-                <span className="slot-badge">+{suggestions.length - 9} more</span>
-              )}
-            </div>
           </div>
           <Button variant="primary" onClick={handleContinue} className="continue-btn">
             Pick Your Meals →

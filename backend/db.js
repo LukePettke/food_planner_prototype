@@ -70,5 +70,8 @@ export function initDb(path) {
       expiry_date INTEGER,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+
+    INSERT OR IGNORE INTO preferences (id, breakfasts_per_week, lunches_per_week, dinners_per_week, people_per_meal, dietary_restrictions, protein_per_serving, carbs_per_serving, fat_per_serving)
+    VALUES ('default', 7, 7, 7, 1, '[]', 25, 40, 15);
   `);
 }
