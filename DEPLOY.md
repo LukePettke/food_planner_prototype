@@ -38,20 +38,24 @@ The simplest way to run everything in one place is **Railway**. You get one URL 
 2. Click **“New Project”**.  
 3. Choose **“Deploy from GitHub repo”**.  
 4. Select your repo (e.g. `meal-planner`).  
-5. Railway will add a service linked to that repo.
+5. Railway will **automatically create two services** (frontend + backend) because it detects the monorepo. We only want **one** service.
 
 ---
 
-## Step 3: Configure the service (one app = one URL)
+## Step 3: Use only ONE service (required)
 
-1. Click your service (the box that appeared).  
-2. Open the **“Settings”** tab.  
-3. Set:
-   - **Root Directory:** leave blank (repo root is correct).  
-   - **Build Command:** `npm run build`  
-   - **Start Command:** `npm start`  
+Your app is built to run as a **single** service (backend serves the built frontend). The repo includes a `railway.json` that tells Railway how to build and start that single app.
+
+1. **Delete the frontend service:** Click the **frontend** box → open the **⋮** menu (or **Settings**) → **Remove** / **Delete** service.  
+2. **Keep only the backend service.**  
+3. Click the **backend** service.  
+4. Open the **“Settings”** tab.  
+5. Set:
+   - **Root Directory:** leave **empty** (so it uses the repo root; that’s where `railway.json`, `package.json`, `npm run build`, and `npm start` live).  
+   - **Build Command:** `npm run build` (or leave blank; `railway.json` sets it).  
+   - **Start Command:** `npm start` (or leave blank; `railway.json` sets it).  
    - **Watch Paths:** leave default.  
-4. Under **“Variables”** (or “Environment”), add:
+6. Under **“Variables”** (or “Environment”), add:
 
    - `NODE_ENV` = `production`  
 
@@ -65,7 +69,7 @@ The simplest way to run everything in one place is **Railway**. You get one URL 
 
    Do **not** commit `.env` or paste secrets into the repo; only add them in Railway’s Variables.
 
-5. Save. Railway will redeploy. When the build finishes, open the **“Settings”** tab again and click **“Generate Domain”** (or use the default one). That URL is your app (frontend + API on one host).
+7. Save. Railway will redeploy. When the build finishes, open the **“Settings”** tab again and click **“Generate Domain”** (or use the default one). That URL is your app (frontend + API on one host).
 
 ---
 
