@@ -51,11 +51,6 @@ function getFallbackImage(mealType, index = 0) {
   return Array.isArray(arr) ? arr[index % arr.length] : arr || FALLBACK_IMAGES.breakfast?.[0];
 }
 
-/** When all options share the same image (API duplicates), use varied fallbacks instead */
-function getDisplayImageUrl(opt, mealType, index, useVariedFallbacks) {
-  if (useVariedFallbacks) return getFallbackImage(mealType, index);
-  return opt?.imageUrl || getFallbackImage(mealType, index);
-}
 
 export default function MealSelection() {
   const { planId } = useParams();
@@ -235,9 +230,6 @@ export default function MealSelection() {
       {MEAL_TYPES.map((mealType) => {
         const options = getOptions(mealType);
         const assigned = assignments[mealType] || {};
-        const first = options[0];
-        const useVariedFallbacks =
-          options.length > 1 && options.every((o) => o?.imageUrl === first?.imageUrl && first?.imageUrl);
 
         return (
           <div key={mealType} className="meal-section">
@@ -258,7 +250,7 @@ export default function MealSelection() {
                   {opt ? (
                     <>
                       <img
-                        src={getDisplayImageUrl(opt, mealType, i, useVariedFallbacks)}
+                        src={opt.imageUrl || getFallbackImage(mealType, i)}
                         alt={opt.name}
                         className="option-img"
                         draggable={false}
@@ -289,7 +281,7 @@ export default function MealSelection() {
                   {assigned[dayIndex] ? (
                     <div className="assigned-meal">
                       <img
-                        src={getDisplayImageUrl(assigned[dayIndex], mealType, dayIndex, useVariedFallbacks)}
+                        src={assigned[dayIndex].imageUrl || getFallbackImage(mealType, dayIndex)}
                         alt=""
                         className="assigned-img"
                         onError={(e) => {

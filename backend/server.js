@@ -19,15 +19,17 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || /^https?:\/\/localhost(:\d+)?$/.test(origin)) cb(null, true);
-    else cb(null, false);
+    if (process.env.NODE_ENV === 'production') return cb(null, true);
+    if (!origin || /^https?:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);
+    cb(null, false);
   },
   credentials: true,
 }));
 app.use(express.json());
 
-// Initialize database
-initDb(join(__dirname, 'data', 'mealplanner.db'));
+// Initialize database (use env for path in production so volume can be mounted)
+const dbPath = process.env.DATABASE_PATH || join(__dirname, 'data', 'mealplanner.db');
+initDb(dbPath);
 
 // API routes
 app.use('/api/preferences', preferencesRoutes);
@@ -37,6 +39,16 @@ app.use('/api/grocery', groceryRoutes);
 app.use('/api/debug', debugRoutes);
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
+
+// Production: serve frontend build from backend/public (single deploy)
+if (process.env.NODE_ENV === 'production') {
+  const publicDir = join(__dirname, 'public');
+  app.use(express.static(publicDir));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(join(publicDir, 'index.html'), (err) => err && next(err));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);

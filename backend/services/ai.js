@@ -163,19 +163,32 @@ export async function getMealSuggestions(preferences, mealType, count, weekStart
   }
 }
 
-export async function getImageSearchQueries(mealNames, mealType) {
-  if (!openai.apiKey || !Array.isArray(mealNames) || mealNames.length === 0) {
-    return mealNames.map((n) => `${(n && typeof n === 'object' && n.name) || n || ''} food dish`);
+export async function getImageSearchQueries(mealOptions, mealType) {
+  if (!openai.apiKey || !Array.isArray(mealOptions) || mealOptions.length === 0) {
+    return (mealOptions || []).map((n) => {
+      const name = n && typeof n === 'object' ? n.name : n;
+      const desc = n?.description || '';
+      return `${(name || '').trim()} ${(desc || '').trim()}`.trim() || 'food dish';
+    });
   }
   try {
-    const list = mealNames.map((n) => n.name || n).join('\n');
-    const prompt = `For each meal name below, output a SHORT search phrase (2-4 words) optimized for finding a beautiful food stock photo. Output a JSON array of strings in the same order, e.g. ["grilled salmon teriyaki", "avocado toast breakfast"].
+    const list = mealOptions.map((o) => {
+      const name = o?.name || o || '';
+      const desc = o?.description || '';
+      return desc ? `${name}\n  Description: ${desc}` : name;
+    }).join('\n\n');
+    const prompt = `Generate one image-search phrase per meal for a food photo API. Each phrase must be UNIQUE and describe ONLY that specific dish so we get a different, matching photo for each.
+
+Rules:
+- Use the exact dish name plus 1-2 key ingredients (e.g. "shakshuka eggs tomato", "grilled chicken wrap", "acai bowl berries").
+- Every phrase must be different from the others—no repeated words across phrases.
+- Phrase = 2-5 words, food-only (no people). We will append " food" for the API.
 
 Meal type: ${mealType}
-Meals:
+Meals (name and description):
 ${list}
 
-Return ONLY the JSON array, no markdown.`;
+Output a JSON array of strings, one phrase per meal in the same order. Example: ["pancakes maple syrup", "overnight oats berries", "breakfast burrito eggs", "granola fruit yogurt", "acai bowl toppings", "greek yogurt parfait", "oatmeal berries", "shakshuka eggs tomato", "breakfast quesadilla cheese", "egg muffins"]. Return ONLY the JSON array, no markdown.`;
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
@@ -184,10 +197,10 @@ Return ONLY the JSON array, no markdown.`;
     const text = completion.choices[0]?.message?.content?.trim() || '[]';
     const cleaned = text.replace(/^```json\s*|\s*```$/g, '');
     const queries = JSON.parse(cleaned);
-    return Array.isArray(queries) ? queries : mealNames.map((n) => `${n.name || n} food`);
+    return Array.isArray(queries) ? queries : mealOptions.map((o) => `${o?.name || o} ${o?.description || ''}`.trim() || 'food');
   } catch (err) {
     console.error('AI image search query error:', err.message);
-    return mealNames.map((n) => `${n?.name || n} food dish`);
+    return mealOptions.map((o) => `${o?.name || o} ${o?.description || ''}`.trim() || 'food dish');
   }
 }
 
