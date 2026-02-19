@@ -80,10 +80,10 @@ async function fetchPexelsBulk(query, count = 10, startPage = 1) {
 }
 
 export async function addImagesToOptions(options, mealType, useAiQueries = true) {
-  // Build one search phrase per meal (AI or name+description) so each photo matches the dish
+  // Build one search phrase per meal (AI or name-only for clearer Pexels results)
   let searchQueries = options.map((o) => {
-    const text = [o.name, o.description].filter(Boolean).join(' ').trim();
-    return text ? `${text} food` : 'food';
+    const name = (o?.name || '').trim();
+    return name ? `${name} food` : 'food';
   });
   if (useAiQueries) {
     try {
@@ -107,28 +107,28 @@ export async function addImagesToOptions(options, mealType, useAiQueries = true)
 
   for (let i = 0; i < options.length; i++) {
     const opt = options[i];
-    const exactQuery = [opt.name, opt.description].filter(Boolean).join(' ').trim();
-    const mealQuery = (searchQueries[i] || `${exactQuery || opt.name} food`).trim();
+    const mealQuery = (searchQueries[i] || `${(opt.name || '').trim()} food`).trim();
 
-    // Fetch several Pexels results for this meal's query, pick first we haven't used (unique + on-topic)
+    // Prioritize relevance: fetch results for THIS meal's query and use the best (first) match.
+    // Only skip to next candidate if we already used that URL for a previous meal (avoid duplicates when possible).
     let url = null;
     const candidates = [
       ...(await fetchPexelsSeveral(mealQuery, 8)),
-      ...(await fetchPexelsSeveral(opt.name, 5)),
-    ];
+      ...(await fetchPexelsSeveral((opt.name || '').trim(), 5)),
+    ].filter(Boolean);
     for (const u of candidates) {
-      if (u && !usedUrls.has(u)) {
+      if (u) {
         url = u;
+        usedUrls.add(url);
         break;
       }
     }
-    if (url) usedUrls.add(url);
 
-    // If still no unique meal-specific image, try single-result fetch with different pages
+    // If no result from meal-specific search, try single-result fetches with different pages
     if (!url) {
       for (let page = 1; page <= 5; page++) {
-        const u = await fetchPexelsOne(mealQuery, page) || await fetchPexelsOne(opt.name, page);
-        if (u && !usedUrls.has(u)) {
+        const u = await fetchPexelsOne(mealQuery, page) || await fetchPexelsOne((opt.name || '').trim(), page);
+        if (u) {
           url = u;
           usedUrls.add(url);
           break;
@@ -136,12 +136,9 @@ export async function addImagesToOptions(options, mealType, useAiQueries = true)
       }
     }
 
-    if (!url && bulkUrls[i] && !usedUrls.has(bulkUrls[i])) {
-      url = bulkUrls[i];
-      usedUrls.add(url);
-    }
+    // Fallback: use any unused generic image from the meal-type pool (never assign by index — that tied wrong images to wrong meals)
     if (!url) {
-      url = bulkUrls.find((u) => !usedUrls.has(u)) || bulkUrls[i] || null;
+      url = bulkUrls.find((u) => !usedUrls.has(u)) || null;
       if (url) usedUrls.add(url);
     }
 

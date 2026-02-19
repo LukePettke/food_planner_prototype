@@ -1,8 +1,8 @@
+import './env.js'; // load .env first so OPENAI_API_KEY is set before ai.js is loaded
 import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import dotenv from 'dotenv';
 import { createDb, initDb } from './db.js';
 import preferencesRoutes from './routes/preferences.js';
 import mealsRoutes from './routes/meals.js';
@@ -12,7 +12,6 @@ import debugRoutes from './routes/debug.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-dotenv.config({ path: join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +25,16 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// Log every request (method + path + status) so devs see activity in the terminal
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    console.log(`${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`);
+  });
+  next();
+});
 
 // Initialize database (use env for path in production so volume can be mounted)
 const dbPath = process.env.DATABASE_PATH || join(__dirname, 'data', 'mealplanner.db');

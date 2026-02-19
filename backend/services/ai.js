@@ -164,11 +164,11 @@ export async function getMealSuggestions(preferences, mealType, count, weekStart
 }
 
 export async function getImageSearchQueries(mealOptions, mealType) {
+  // Without OpenAI, use meal name only so Pexels gets a clear dish-specific query (no noisy description)
   if (!openai.apiKey || !Array.isArray(mealOptions) || mealOptions.length === 0) {
     return (mealOptions || []).map((n) => {
       const name = n && typeof n === 'object' ? n.name : n;
-      const desc = n?.description || '';
-      return `${(name || '').trim()} ${(desc || '').trim()}`.trim() || 'food dish';
+      return (name || '').trim() || 'food dish';
     });
   }
   try {
@@ -241,5 +241,30 @@ export async function getShoppingList(preferences, recipes) {
   } catch (err) {
     console.error('AI shopping list error:', err.message);
     return mockShoppingList(recipes);
+  }
+}
+
+/** Verify OpenAI API key is set and valid. Returns { ok, error?, keySet? }. */
+export async function verifyOpenAIKey() {
+  const keySet = !!(process.env.OPENAI_API_KEY || '').trim();
+  if (!keySet) {
+    return { ok: false, keySet: false, error: 'OPENAI_API_KEY not set in .env' };
+  }
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: 'Reply with exactly: OK' }],
+      max_tokens: 5,
+    });
+    const text = completion.choices[0]?.message?.content?.trim() || '';
+    return { ok: true, keySet: true, response: text };
+  } catch (err) {
+    const msg = err?.message || String(err);
+    const isAuth = msg.includes('401') || msg.includes('Incorrect API key') || msg.includes('invalid_api_key');
+    return {
+      ok: false,
+      keySet: true,
+      error: isAuth ? 'Invalid or expired API key' : msg,
+    };
   }
 }

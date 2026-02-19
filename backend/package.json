@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "node server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "clear-meals": "node scripts/clear-meals-and-verify-openai.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.5.0",

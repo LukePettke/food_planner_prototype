@@ -1,6 +1,33 @@
 import { Router } from 'express';
+import { getDb } from '../db.js';
+import { verifyOpenAIKey } from '../services/ai.js';
 
 const router = Router();
+
+// GET /api/debug/openai - verify OpenAI API key is set and valid
+router.get('/openai', async (req, res) => {
+  try {
+    const result = await verifyOpenAIKey();
+    res.json(result);
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+// POST /api/debug/clear-meals - delete all meal plans, selected meals, and grocery lists
+router.post('/clear-meals', (req, res) => {
+  try {
+    const db = getDb();
+    db.exec(`
+      DELETE FROM grocery_lists;
+      DELETE FROM selected_meals;
+      DELETE FROM meal_plans;
+    `);
+    res.json({ ok: true, message: 'All meals, plans, and grocery lists deleted.' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 // GET /api/debug/pexels - test Pexels API (for troubleshooting)
 router.get('/pexels', async (req, res) => {
