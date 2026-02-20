@@ -72,6 +72,61 @@
   font-size: 1rem;
 }
 
+.unit-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.unit-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(196, 167, 125, 0.5);
+  background: var(--color-cream);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex: 1;
+  min-width: 180px;
+}
+
+.unit-option:hover {
+  border-color: var(--color-terracotta);
+}
+
+.unit-option.active {
+  background: var(--color-terracotta);
+  border-color: var(--color-terracotta);
+}
+
+.unit-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.unit-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-charcoal);
+}
+
+.unit-option.active .unit-label {
+  color: var(--color-cream);
+}
+
+.unit-example {
+  font-size: 0.8125rem;
+  color: var(--color-brown);
+}
+
+.unit-option.active .unit-example {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .dietary-grid {
   display: flex;
   flex-wrap: wrap;

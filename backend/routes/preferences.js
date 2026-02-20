@@ -22,6 +22,7 @@ router.get('/', (req, res) => {
         protein_per_serving: 25,
         carbs_per_serving: 40,
         fat_per_serving: 15,
+        recipe_units: 'imperial',
       });
     }
   } catch (err) {
@@ -36,6 +37,12 @@ function clampMeals(n) {
   return Math.min(MAX_MEALS_PER_WEEK, Math.floor(v));
 }
 
+const VALID_RECIPE_UNITS = ['imperial', 'metric'];
+function normalizeRecipeUnits(val) {
+  const v = (val || 'imperial').toLowerCase();
+  return VALID_RECIPE_UNITS.includes(v) ? v : 'imperial';
+}
+
 router.post('/', (req, res) => {
   try {
     const db = getDb();
@@ -48,15 +55,17 @@ router.post('/', (req, res) => {
       protein_per_serving = 25,
       carbs_per_serving = 40,
       fat_per_serving = 15,
+      recipe_units = 'imperial',
     } = req.body;
 
     const b = clampMeals(breakfasts_per_week);
     const l = clampMeals(lunches_per_week);
     const d = clampMeals(dinners_per_week);
+    const units = normalizeRecipeUnits(recipe_units);
 
     db.prepare(`
-      INSERT INTO preferences (id, breakfasts_per_week, lunches_per_week, dinners_per_week, people_per_meal, dietary_restrictions, protein_per_serving, carbs_per_serving, fat_per_serving, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      INSERT INTO preferences (id, breakfasts_per_week, lunches_per_week, dinners_per_week, people_per_meal, dietary_restrictions, protein_per_serving, carbs_per_serving, fat_per_serving, recipe_units, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       ON CONFLICT(id) DO UPDATE SET
         breakfasts_per_week = excluded.breakfasts_per_week,
         lunches_per_week = excluded.lunches_per_week,
@@ -66,8 +75,9 @@ router.post('/', (req, res) => {
         protein_per_serving = excluded.protein_per_serving,
         carbs_per_serving = excluded.carbs_per_serving,
         fat_per_serving = excluded.fat_per_serving,
+        recipe_units = excluded.recipe_units,
         updated_at = datetime('now')
-    `).run(PREF_ID, b, l, d, people_per_meal, JSON.stringify(dietary_restrictions), protein_per_serving, carbs_per_serving, fat_per_serving);
+    `).run(PREF_ID, b, l, d, people_per_meal, JSON.stringify(dietary_restrictions), protein_per_serving, carbs_per_serving, fat_per_serving, units);
 
     res.json({ ok: true });
   } catch (err) {

@@ -30,6 +30,7 @@ function loadPreferences() {
     protein_per_serving: 25,
     carbs_per_serving: 40,
     fat_per_serving: 15,
+    recipe_units: 'imperial',
   };
 }
 

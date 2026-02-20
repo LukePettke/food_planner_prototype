@@ -22,6 +22,7 @@ export default function Preferences() {
     protein_per_serving: 25,
     carbs_per_serving: 40,
     fat_per_serving: 15,
+    recipe_units: 'imperial',
   });
 
   const clampMeals = (n) => Math.max(0, Math.min(7, Math.floor(Number(n)) || 0));
@@ -37,6 +38,7 @@ export default function Preferences() {
         protein_per_serving: p.protein_per_serving ?? 25,
         carbs_per_serving: p.carbs_per_serving ?? 40,
         fat_per_serving: p.fat_per_serving ?? 15,
+        recipe_units: p.recipe_units === 'metric' ? 'metric' : 'imperial',
       }))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -117,6 +119,35 @@ export default function Preferences() {
           />
           <span>people</span>
         </label>
+      </Card>
+
+      <Card className="pref-section">
+        <h2 className="section-title">Recipe Units</h2>
+        <p className="section-desc">Choose which measurement system to use in generated recipes and the shopping list.</p>
+        <div className="unit-options">
+          <label className={`unit-option ${prefs.recipe_units === 'imperial' ? 'active' : ''}`}>
+            <input
+              type="radio"
+              name="recipe_units"
+              value="imperial"
+              checked={prefs.recipe_units === 'imperial'}
+              onChange={() => setPrefs({ ...prefs, recipe_units: 'imperial' })}
+            />
+            <span className="unit-label">Imperial</span>
+            <span className="unit-example">e.g. cups, tbsp, tsp, oz, lb, °F</span>
+          </label>
+          <label className={`unit-option ${prefs.recipe_units === 'metric' ? 'active' : ''}`}>
+            <input
+              type="radio"
+              name="recipe_units"
+              value="metric"
+              checked={prefs.recipe_units === 'metric'}
+              onChange={() => setPrefs({ ...prefs, recipe_units: 'metric' })}
+            />
+            <span className="unit-label">Metric</span>
+            <span className="unit-example">e.g. ml, g, kg, °C</span>
+          </label>
+        </div>
       </Card>
 
       <Card className="pref-section">

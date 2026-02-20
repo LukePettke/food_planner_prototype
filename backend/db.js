@@ -17,7 +17,14 @@ export function getDb() {
 
 export function initDb(path) {
   if (!db) createDb(path);
-  
+
+  // Migration: add recipe_units to existing DBs before running schema that references it
+  try {
+    db.exec(`ALTER TABLE preferences ADD COLUMN recipe_units TEXT DEFAULT 'imperial'`);
+  } catch (_) {
+    // Column already exists (new install or already migrated)
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS preferences (
       id TEXT PRIMARY KEY,
@@ -29,6 +36,7 @@ export function initDb(path) {
       protein_per_serving INTEGER DEFAULT 25,
       carbs_per_serving INTEGER DEFAULT 40,
       fat_per_serving INTEGER DEFAULT 15,
+      recipe_units TEXT DEFAULT 'imperial',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -81,7 +89,7 @@ export function initDb(path) {
     );
     CREATE INDEX IF NOT EXISTS idx_meal_library_type ON meal_library(meal_type);
 
-    INSERT OR IGNORE INTO preferences (id, breakfasts_per_week, lunches_per_week, dinners_per_week, people_per_meal, dietary_restrictions, protein_per_serving, carbs_per_serving, fat_per_serving)
-    VALUES ('default', 7, 7, 7, 1, '[]', 25, 40, 15);
+    INSERT OR IGNORE INTO preferences (id, breakfasts_per_week, lunches_per_week, dinners_per_week, people_per_meal, dietary_restrictions, protein_per_serving, carbs_per_serving, fat_per_serving, recipe_units)
+    VALUES ('default', 7, 7, 7, 1, '[]', 25, 40, 15, 'imperial');
   `);
 }

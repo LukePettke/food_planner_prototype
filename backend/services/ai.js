@@ -12,6 +12,7 @@ const DEFAULT_PREFERENCES = {
   protein_per_serving: 25,
   carbs_per_serving: 40,
   fat_per_serving: 15,
+  recipe_units: 'imperial',
 };
 
 function buildPrompt(type, preferences, context = {}) {
@@ -41,15 +42,21 @@ Return ONLY valid JSON, no markdown or extra text.`;
 
   if (type === 'recipes') {
     const { meals } = context;
+    const useMetric = (prefs.recipe_units || 'imperial') === 'metric';
+    const unitInstruction = useMetric
+      ? 'Use METRIC units only for all ingredients and temperatures: ml, g, kg, °C (e.g. 200 ml milk, 150 g flour, 180 °C oven).'
+      : 'Use IMPERIAL/US customary units only for all ingredients and temperatures: cups, tbsp, tsp, oz, lb, °F (e.g. 1 cup flour, 2 tbsp oil, 350 °F oven).';
     return `You are a chef. For each of these meals, provide a detailed recipe in JSON format.
 
 Meals: ${meals.map((m) => m.name).join(', ')}
 
 Constraints: Dietary restrictions: ${dietary || 'None'}. Target macros per serving: ${macros}. Servings: ${people} per meal.
 
+UNIT SYSTEM: ${unitInstruction}
+
 Return a JSON array of objects, one per meal, each with:
 - name (string)
-- ingredients (array of objects: { name, amount, unit } for ${people} servings)
+- ingredients (array of objects: { name, amount, unit } for ${people} servings — use only the unit system specified above)
 - instructions (array of numbered steps as strings)
 - prepMinutes (number)
 - cookMinutes (number)
@@ -61,12 +68,14 @@ Return ONLY valid JSON, no markdown or extra text.`;
   if (type === 'shopping_list') {
     const { recipes } = context;
     const ingredients = recipes.flatMap((r) => r.ingredients || []);
+    const useMetric = (prefs.recipe_units || 'imperial') === 'metric';
+    const unitNote = useMetric ? 'Keep amounts in metric (ml, g, kg).' : 'Keep amounts in imperial (cups, tbsp, oz, lb).';
     return `Consolidate these ingredients into a single shopping list for ${people} people.
 
 Ingredients (from multiple recipes): ${JSON.stringify(ingredients)}
 
 Return a JSON array of objects: { name, totalAmount, unit, category } where category is one of: produce, dairy, meat, pantry, frozen, other.
-Combine duplicate items (e.g. "2 cups flour" + "1 cup flour" = "3 cups flour").
+Combine duplicate items (e.g. "2 cups flour" + "1 cup flour" = "3 cups flour"). ${unitNote}
 Return ONLY valid JSON.`;
   }
 
@@ -106,13 +115,13 @@ function mockMealSuggestions(mealType, count, weekStart = '') {
   }));
 }
 
-function mockRecipes(meals) {
+function mockRecipes(meals, recipeUnits = 'imperial') {
+  const useMetric = recipeUnits === 'metric';
+  const ing1 = useMetric ? { name: 'ingredient 1', amount: 240, unit: 'ml' } : { name: 'ingredient 1', amount: 1, unit: 'cup' };
+  const ing2 = useMetric ? { name: 'ingredient 2', amount: 30, unit: 'ml' } : { name: 'ingredient 2', amount: 2, unit: 'tbsp' };
   return meals.map((m) => ({
     name: m.name,
-    ingredients: [
-      { name: 'ingredient 1', amount: 1, unit: 'cup' },
-      { name: 'ingredient 2', amount: 2, unit: 'tbsp' },
-    ],
+    ingredients: [ing1, ing2],
     instructions: ['Step 1: Prepare ingredients.', 'Step 2: Cook according to preference.'],
     prepMinutes: 15,
     cookMinutes: 25,
@@ -206,7 +215,7 @@ Output a JSON array of strings, one phrase per meal in the same order. Example: 
 
 export async function getRecipes(preferences, meals) {
   if (!openai.apiKey) {
-    return mockRecipes(meals);
+    return mockRecipes(meals, preferences?.recipe_units || 'imperial');
   }
   try {
     const prompt = buildPrompt('recipes', preferences, { meals });
@@ -220,7 +229,7 @@ export async function getRecipes(preferences, meals) {
     return JSON.parse(cleaned);
   } catch (err) {
     console.error('AI recipes error:', err.message);
-    return mockRecipes(meals);
+    return mockRecipes(meals, preferences?.recipe_units || 'imperial');
   }
 }
 
