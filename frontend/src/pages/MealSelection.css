@@ -17,13 +17,20 @@
   margin-bottom: 0.5rem;
 }
 
-/* 10 options in 2 rows of 5 */
+/* Options grid: 2 columns × N rows (was 2×5 for 10 options) */
 .options-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   grid-template-rows: repeat(2, auto);
   gap: 0.5rem;
   margin-bottom: 0.5rem;
+}
+
+/* 2 rows × 7 columns for meal options */
+.options-grid.options-grid-2x7 {
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(2, auto);
+  grid-auto-rows: auto;
 }
 
 .option-card {
@@ -214,6 +221,10 @@
     grid-template-columns: repeat(5, 1fr);
   }
 
+  .options-grid.options-grid-2x7 {
+    grid-template-columns: repeat(7, 1fr);
+  }
+
   .days-row {
     grid-template-columns: repeat(7, 1fr);
   }
@@ -226,6 +237,10 @@
 @media (max-width: 640px) {
   .options-grid {
     grid-template-columns: repeat(5, 1fr);
+  }
+
+  .options-grid.options-grid-2x7 {
+    grid-template-columns: repeat(7, 1fr);
   }
 
   .days-row {

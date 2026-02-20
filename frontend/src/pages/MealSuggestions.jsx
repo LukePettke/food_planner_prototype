@@ -10,15 +10,18 @@ export default function MealSuggestions() {
   const [loading, setLoading] = useState(false);
   const [planId, setPlanId] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+  const [optionCounts, setOptionCounts] = useState(null);
   const [weekStart, setWeekStart] = useState(format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd'));
   const navigate = useNavigate();
 
   const handleGenerate = async () => {
     setLoading(true);
+    setOptionCounts(null);
     try {
       const res = await api.suggest(weekStart);
       setPlanId(res.planId);
       setSuggestions(res.suggestions);
+      setOptionCounts(res.optionCounts || null);
       setWeekStart(res.weekStart);
     } catch (err) {
       alert(err.message || 'Failed to generate suggestions');
@@ -61,8 +64,13 @@ export default function MealSuggestions() {
           <div className="suggestions-preview">
             <h2 className="preview-title">Meal Options Generated</h2>
             <p className="preview-desc">
-              10 options each for breakfast, lunch, and dinner. Drag meals to days on the next screen.
+              Two options per meal slot (based on your preferences). Drag meals into slots on the next screen.
             </p>
+            {optionCounts && (
+              <p className="preview-counts">
+                {optionCounts.breakfast} breakfast · {optionCounts.lunch} lunch · {optionCounts.dinner} dinner options
+              </p>
+            )}
           </div>
           <Button variant="primary" onClick={handleContinue} className="continue-btn">
             Pick Your Meals →

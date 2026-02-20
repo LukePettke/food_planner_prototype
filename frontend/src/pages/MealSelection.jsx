@@ -230,6 +230,8 @@ export default function MealSelection() {
       {MEAL_TYPES.map((mealType) => {
         const options = getOptions(mealType);
         const assigned = assignments[mealType] || {};
+        // 2 rows × 7 columns = 14 cells; fill with options, rest empty
+        const gridCells = Array.from({ length: 14 }, (_, i) => options[i] ?? null);
 
         return (
           <div key={mealType} className="meal-section">
@@ -237,9 +239,9 @@ export default function MealSelection() {
               {mealType.charAt(0).toUpperCase() + mealType.slice(1)}
             </h2>
 
-            {/* 10 options in 2 rows of 5 */}
-            <div className="options-grid">
-              {(options.length ? options : Array(10).fill(null)).map((opt, i) => (
+            {/* Options: 2 rows × 7 columns */}
+            <div className="options-grid options-grid-2x7">
+              {gridCells.map((opt, i) => (
                 <div
                   key={i}
                   className={`option-card ${dragItem?.meal?.name === opt?.name ? 'dragging' : ''}`}
@@ -267,7 +269,7 @@ export default function MealSelection() {
               ))}
             </div>
 
-            {/* 7 day drop zones */}
+            {/* Row of 7 days for this meal type */}
             <div className="days-row">
               {dayLabels.map((label, dayIndex) => (
                 <div

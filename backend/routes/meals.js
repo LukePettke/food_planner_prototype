@@ -7,12 +7,18 @@ import { format, addDays, startOfWeek } from 'date-fns';
 
 const router = Router();
 
-// Load preferences helper
+// Load preferences helper - explicitly coerce meal counts so DB string/int doesn't break math
 function loadPreferences() {
   const db = getDb();
   const p = db.prepare('SELECT * FROM preferences WHERE id = ?').get('default');
   if (p) {
     p.dietary_restrictions = JSON.parse(p.dietary_restrictions || '[]');
+    p.breakfasts_per_week = Number(p.breakfasts_per_week);
+    p.lunches_per_week = Number(p.lunches_per_week);
+    p.dinners_per_week = Number(p.dinners_per_week);
+    if (Number.isNaN(p.breakfasts_per_week)) p.breakfasts_per_week = 7;
+    if (Number.isNaN(p.lunches_per_week)) p.lunches_per_week = 7;
+    if (Number.isNaN(p.dinners_per_week)) p.dinners_per_week = 7;
     return p;
   }
   return {
@@ -27,7 +33,16 @@ function loadPreferences() {
   };
 }
 
-// POST /api/meals/suggest - generates 10 options per meal type (breakfast, lunch, dinner)
+const OPTIONS_PER_SLOT = 2;
+const MAX_MEALS_PER_WEEK = 7;
+
+function clampMealsPerWeek(n) {
+  const v = Number(n);
+  if (Number.isNaN(v) || v < 0) return 0;
+  return Math.min(MAX_MEALS_PER_WEEK, Math.floor(v));
+}
+
+// POST /api/meals/suggest - 2 options per meals-per-week (e.g. 5 breakfasts → 10 options)
 router.post('/suggest', async (req, res) => {
   try {
     const { weekStart } = req.body;
@@ -36,11 +51,24 @@ router.post('/suggest', async (req, res) => {
     const weekLabel = format(start, 'MMM d, yyyy');
     const dayLabels = [0, 1, 2, 3, 4, 5, 6].map((d) => format(addDays(start, d), 'EEE'));
 
+    const mealsPerWeek = {
+      breakfast: clampMealsPerWeek(prefs.breakfasts_per_week),
+      lunch: clampMealsPerWeek(prefs.lunches_per_week),
+      dinner: clampMealsPerWeek(prefs.dinners_per_week),
+    };
+
     const mealTypes = ['breakfast', 'lunch', 'dinner'];
-    const results = { dayLabels, weekStart: format(start, 'yyyy-MM-dd') };
+    const results = { dayLabels, weekStart: format(start, 'yyyy-MM-dd'), mealsPerWeek };
 
     for (const mealType of mealTypes) {
-      const suggestions = await getMealSuggestions(prefs, mealType, 10, weekLabel);
+      const slots = mealsPerWeek[mealType];
+      const count = slots * OPTIONS_PER_SLOT;
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[meals/suggest] ${mealType}: mealsPerWeek=${slots} → requesting ${count} options`);
+      }
+      const suggestions = count > 0
+        ? await getMealSuggestions(prefs, mealType, count, weekLabel)
+        : [];
       const optionsWithImages = await addImagesToOptions(suggestions, mealType);
       results[`${mealType}Options`] = optionsWithImages;
     }
@@ -52,7 +80,18 @@ router.post('/suggest', async (req, res) => {
       VALUES (?, 'default', ?, ?)
     `).run(planId, format(start, 'yyyy-MM-dd'), JSON.stringify(results));
 
-    res.json({ planId, suggestions: results, weekStart: format(start, 'yyyy-MM-dd') });
+    const optionCounts = {
+      breakfast: (results.breakfastOptions || []).length,
+      lunch: (results.lunchOptions || []).length,
+      dinner: (results.dinnerOptions || []).length,
+    };
+    res.json({
+      planId,
+      suggestions: results,
+      weekStart: format(start, 'yyyy-MM-dd'),
+      optionCounts,
+      mealsPerWeek,
+    });
   } catch (err) {
     console.error('Meal suggest error:', err);
     res.status(500).json({ error: err.message });
@@ -72,7 +111,8 @@ router.post('/select', async (req, res) => {
       selections = [];
       for (const mealType of ['breakfast', 'lunch', 'dinner']) {
         const days = a[mealType] || {};
-        for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+        const indices = Object.keys(days).map(Number).filter((n) => !Number.isNaN(n)).sort((x, y) => x - y);
+        for (const dayIndex of indices) {
           const meal = days[dayIndex];
           if (meal) selections.push({ mealType, dayIndex, meal });
         }

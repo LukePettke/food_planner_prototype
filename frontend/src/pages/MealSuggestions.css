@@ -39,6 +39,13 @@
 .preview-desc {
   font-size: 0.9375rem;
   color: var(--color-brown);
+  margin-bottom: 0.5rem;
+}
+
+.preview-counts {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-terracotta-dark);
   margin-bottom: 1rem;
 }
 

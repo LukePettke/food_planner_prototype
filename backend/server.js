@@ -15,7 +15,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+// Railway injects PORT; must listen on this port (parsed as int). Do not set PORT in Railway Variables.
+const PORT = parseInt(process.env.PORT || '3001', 10);
 
 app.use(cors({
   origin: (origin, cb) => {
@@ -71,7 +72,7 @@ if (process.env.NODE_ENV === 'production') {
 
 const HOST = process.env.HOST || '0.0.0.0';
 const server = app.listen(PORT, HOST, () => {
-  console.log(`Server running at http://${HOST}:${PORT} (NODE_ENV=${process.env.NODE_ENV || 'undefined'})`);
+  console.log(`Server running at http://${HOST}:${PORT} (NODE_ENV=${process.env.NODE_ENV || 'undefined'}, PORT from env: ${process.env.PORT ?? 'not set'})`);
   const publicDir = join(__dirname, 'public');
   console.log(`public dir exists: ${existsSync(publicDir)}, index.html: ${existsSync(join(publicDir, 'index.html'))}`);
   const pexels = !!process.env.PEXELS_API_KEY?.trim();

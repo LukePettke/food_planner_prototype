@@ -24,12 +24,14 @@ export default function Preferences() {
     fat_per_serving: 15,
   });
 
+  const clampMeals = (n) => Math.max(0, Math.min(7, Math.floor(Number(n)) || 0));
+
   useEffect(() => {
     api.get()
       .then((p) => setPrefs({
-        breakfasts_per_week: p.breakfasts_per_week ?? 7,
-        lunches_per_week: p.lunches_per_week ?? 7,
-        dinners_per_week: p.dinners_per_week ?? 7,
+        breakfasts_per_week: clampMeals(p.breakfasts_per_week ?? 7),
+        lunches_per_week: clampMeals(p.lunches_per_week ?? 7),
+        dinners_per_week: clampMeals(p.dinners_per_week ?? 7),
         people_per_meal: p.people_per_meal ?? 1,
         dietary_restrictions: Array.isArray(p.dietary_restrictions) ? p.dietary_restrictions : [],
         protein_per_serving: p.protein_per_serving ?? 25,
@@ -74,9 +76,9 @@ export default function Preferences() {
             <input
               type="number"
               min={0}
-              max={14}
+              max={7}
               value={prefs.breakfasts_per_week}
-              onChange={(e) => setPrefs({ ...prefs, breakfasts_per_week: Math.max(0, Math.min(14, +e.target.value || 0)) })}
+              onChange={(e) => setPrefs({ ...prefs, breakfasts_per_week: Math.max(0, Math.min(7, +e.target.value || 0)) })}
             />
           </label>
           <label>
@@ -84,9 +86,9 @@ export default function Preferences() {
             <input
               type="number"
               min={0}
-              max={14}
+              max={7}
               value={prefs.lunches_per_week}
-              onChange={(e) => setPrefs({ ...prefs, lunches_per_week: Math.max(0, Math.min(14, +e.target.value || 0)) })}
+              onChange={(e) => setPrefs({ ...prefs, lunches_per_week: Math.max(0, Math.min(7, +e.target.value || 0)) })}
             />
           </label>
           <label>
@@ -94,9 +96,9 @@ export default function Preferences() {
             <input
               type="number"
               min={0}
-              max={14}
+              max={7}
               value={prefs.dinners_per_week}
-              onChange={(e) => setPrefs({ ...prefs, dinners_per_week: Math.max(0, Math.min(14, +e.target.value || 0)) })}
+              onChange={(e) => setPrefs({ ...prefs, dinners_per_week: Math.max(0, Math.min(7, +e.target.value || 0)) })}
             />
           </label>
         </div>
