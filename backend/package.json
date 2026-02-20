@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
+    "build": "echo 'Backend has no build step'",
     "clear-meals": "node scripts/clear-meals-and-verify-openai.js"
   },
   "dependencies": {

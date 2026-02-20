@@ -59,8 +59,9 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';
+app.listen(PORT, HOST, () => {
+  console.log(`Server running at http://${HOST}:${PORT}`);
   const pexels = !!process.env.PEXELS_API_KEY?.trim();
   if (!pexels) {
     console.log('Image APIs: Add PEXELS_API_KEY to .env for meal photos.');
