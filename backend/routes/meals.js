@@ -42,7 +42,44 @@ function clampMealsPerWeek(n) {
   return Math.min(MAX_MEALS_PER_WEEK, Math.floor(v));
 }
 
-// POST /api/meals/suggest - 2 options per meals-per-week (e.g. 5 breakfasts → 10 options)
+// ----- Meal library: reuse saved ideas, save new AI ones -----
+function getMealsFromLibrary(mealType, limit) {
+  const db = getDb();
+  const rows = db.prepare(
+    `SELECT id, meal_type, name, description, tags, created_at FROM meal_library WHERE meal_type = ? ORDER BY RANDOM() LIMIT ?`
+  ).all(mealType, limit);
+  return rows.map((r) => ({
+    name: r.name,
+    description: r.description || '',
+    tags: JSON.parse(r.tags || '[]'),
+    estimatedPrepMinutes: 25,
+  }));
+}
+
+function isMealInLibrary(mealType, name) {
+  const db = getDb();
+  const n = (name || '').trim().toLowerCase();
+  if (!n) return true;
+  const row = db.prepare(
+    `SELECT 1 FROM meal_library WHERE meal_type = ? AND lower(trim(name)) = ? LIMIT 1`
+  ).get(mealType, n);
+  return !!row;
+}
+
+function saveMealsToLibrary(mealType, meals) {
+  if (!Array.isArray(meals) || meals.length === 0) return;
+  const db = getDb();
+  const insert = db.prepare(
+    `INSERT INTO meal_library (id, meal_type, name, description, tags, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`
+  );
+  for (const m of meals) {
+    const name = (m?.name || '').trim();
+    if (!name || isMealInLibrary(mealType, name)) continue;
+    insert.run(randomUUID(), mealType, name, (m?.description || '').trim() || null, JSON.stringify(m?.tags || []));
+  }
+}
+
+// POST /api/meals/suggest - use library first, top up with AI; save new AI ideas to library
 router.post('/suggest', async (req, res) => {
   try {
     const { weekStart } = req.body;
@@ -63,13 +100,32 @@ router.post('/suggest', async (req, res) => {
     for (const mealType of mealTypes) {
       const slots = mealsPerWeek[mealType];
       const count = slots * OPTIONS_PER_SLOT;
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`[meals/suggest] ${mealType}: mealsPerWeek=${slots} → requesting ${count} options`);
+      if (count <= 0) {
+        results[`${mealType}Options`] = [];
+        continue;
       }
-      const suggestions = count > 0
-        ? await getMealSuggestions(prefs, mealType, count, weekLabel)
-        : [];
-      const optionsWithImages = await addImagesToOptions(suggestions, mealType);
+
+      const fromLibrary = getMealsFromLibrary(mealType, count);
+      const needFromAi = Math.max(0, count - fromLibrary.length);
+      let fromAi = [];
+      if (needFromAi > 0) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[meals/suggest] ${mealType}: ${fromLibrary.length} from library, ${needFromAi} from AI`);
+        }
+        fromAi = await getMealSuggestions(prefs, mealType, needFromAi, weekLabel);
+        saveMealsToLibrary(mealType, fromAi);
+      }
+
+      const seen = new Set();
+      const combined = [];
+      for (const m of [...fromLibrary, ...fromAi]) {
+        const key = (m?.name || '').trim().toLowerCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        combined.push(m);
+        if (combined.length >= count) break;
+      }
+      const optionsWithImages = await addImagesToOptions(combined, mealType);
       results[`${mealType}Options`] = optionsWithImages;
     }
 

@@ -71,6 +71,16 @@ export function initDb(path) {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS meal_library (
+      id TEXT PRIMARY KEY,
+      meal_type TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      tags TEXT DEFAULT '[]',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_meal_library_type ON meal_library(meal_type);
+
     INSERT OR IGNORE INTO preferences (id, breakfasts_per_week, lunches_per_week, dinners_per_week, people_per_meal, dietary_restrictions, protein_per_serving, carbs_per_serving, fat_per_serving)
     VALUES ('default', 7, 7, 7, 1, '[]', 25, 40, 15);
   `);
