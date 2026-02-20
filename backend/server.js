@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { existsSync } from 'fs';
 import { createDb, initDb } from './db.js';
 import preferencesRoutes from './routes/preferences.js';
 import mealsRoutes from './routes/meals.js';
@@ -49,6 +50,15 @@ app.use('/api/debug', debugRoutes);
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
+// Fallback for GET / so health checks and visitors always get a response (e.g. Railway)
+app.get('/', (req, res, next) => {
+  if (process.env.NODE_ENV !== 'production') return next();
+  const publicDir = join(__dirname, 'public');
+  const indexHtml = join(publicDir, 'index.html');
+  if (existsSync(indexHtml)) return next();
+  res.redirect(302, '/api/health');
+});
+
 // Production: serve frontend build from backend/public (single deploy)
 if (process.env.NODE_ENV === 'production') {
   const publicDir = join(__dirname, 'public');
@@ -60,10 +70,16 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const HOST = process.env.HOST || '0.0.0.0';
-app.listen(PORT, HOST, () => {
-  console.log(`Server running at http://${HOST}:${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`Server running at http://${HOST}:${PORT} (NODE_ENV=${process.env.NODE_ENV || 'undefined'})`);
+  const publicDir = join(__dirname, 'public');
+  console.log(`public dir exists: ${existsSync(publicDir)}, index.html: ${existsSync(join(publicDir, 'index.html'))}`);
   const pexels = !!process.env.PEXELS_API_KEY?.trim();
   if (!pexels) {
     console.log('Image APIs: Add PEXELS_API_KEY to .env for meal photos.');
   }
+});
+server.on('error', (err) => {
+  console.error('Server listen error:', err);
+  process.exit(1);
 });
