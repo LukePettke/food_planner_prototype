@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { getDb } from '../db.js';
+import { getRecipeForMeal, hasApi as hasSpoonacular } from './spoonacular.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
 
@@ -214,23 +215,56 @@ Output a JSON array of strings, one phrase per meal in the same order. Example: 
 }
 
 export async function getRecipes(preferences, meals) {
-  if (!openai.apiKey) {
-    return mockRecipes(meals, preferences?.recipe_units || 'imperial');
+  const recipeUnits = preferences?.recipe_units || 'imperial';
+
+  // 1) Try real recipes from Spoonacular first (one request per meal)
+  const apiResults = hasSpoonacular()
+    ? await Promise.all(meals.map((m) => getRecipeForMeal(m.name, preferences)))
+    : meals.map(() => null);
+
+  const merged = apiResults.map((r) => r ?? null);
+  const missedIndices = [];
+  const missedMeals = [];
+  for (let i = 0; i < meals.length; i++) {
+    if (merged[i] == null) {
+      missedIndices.push(i);
+      missedMeals.push(meals[i]);
+    }
   }
-  try {
-    const prompt = buildPrompt('recipes', preferences, { meals });
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.5,
-    });
-    const text = completion.choices[0]?.message?.content?.trim() || '[]';
-    const cleaned = text.replace(/^```json\s*|\s*```$/g, '');
-    return JSON.parse(cleaned);
-  } catch (err) {
-    console.error('AI recipes error:', err.message);
-    return mockRecipes(meals, preferences?.recipe_units || 'imperial');
+
+  if (missedMeals.length === 0) return merged;
+
+  // 2) Fill misses with AI-generated recipes, or mock if no OpenAI key
+  let fallbackRecipes = [];
+  if (openai.apiKey) {
+    try {
+      const prompt = buildPrompt('recipes', preferences, { meals: missedMeals });
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.5,
+      });
+      const text = completion.choices[0]?.message?.content?.trim() || '[]';
+      const cleaned = text.replace(/^```json\s*|\s*```$/g, '');
+      fallbackRecipes = JSON.parse(cleaned);
+      if (!Array.isArray(fallbackRecipes)) fallbackRecipes = [];
+    } catch (err) {
+      console.error('AI recipes error:', err.message);
+      fallbackRecipes = mockRecipes(missedMeals, recipeUnits);
+    }
+  } else {
+    fallbackRecipes = mockRecipes(missedMeals, recipeUnits);
   }
+
+  for (let j = 0; j < missedIndices.length; j++) {
+    const idx = missedIndices[j];
+    const recipe = fallbackRecipes[j];
+    merged[idx] = recipe && typeof recipe === 'object'
+      ? { ...recipe, name: recipe.name || missedMeals[j]?.name || 'Recipe' }
+      : mockRecipes([missedMeals[j]], recipeUnits)[0];
+  }
+
+  return merged;
 }
 
 export async function getShoppingList(preferences, recipes) {
