@@ -10,6 +10,12 @@ const DIETARY_OPTIONS = [
   'Nut-free', 'Keto', 'Paleo', 'Low-carb', 'Low-sodium', 'Halal', 'Kosher',
 ];
 
+const MEAL_COMPLEXITY_OPTIONS = [
+  { id: 'quick_easy', label: 'Quick & Easy', description: 'Simple recipes, few ingredients, minimal steps—ideal for busy days.' },
+  { id: 'everyday', label: 'Everyday', description: 'Familiar dishes with moderate effort and cook time.' },
+  { id: 'from_scratch', label: 'From-Scratch', description: 'More involved, chef-style recipes and new techniques.' },
+];
+
 export default function Preferences() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -19,6 +25,7 @@ export default function Preferences() {
     dinners_per_week: 7,
     people_per_meal: 1,
     dietary_restrictions: [],
+    meal_complexity_levels: ['quick_easy', 'everyday', 'from_scratch'],
     protein_per_serving: 25,
     carbs_per_serving: 40,
     fat_per_serving: 15,
@@ -35,6 +42,7 @@ export default function Preferences() {
         dinners_per_week: clampMeals(p.dinners_per_week ?? 7),
         people_per_meal: p.people_per_meal ?? 1,
         dietary_restrictions: Array.isArray(p.dietary_restrictions) ? p.dietary_restrictions : [],
+        meal_complexity_levels: normalizeMealComplexityLevels(p.meal_complexity_levels),
         protein_per_serving: p.protein_per_serving ?? 25,
         carbs_per_serving: p.carbs_per_serving ?? 40,
         fat_per_serving: p.fat_per_serving ?? 15,
@@ -51,10 +59,40 @@ export default function Preferences() {
     setPrefs({ ...prefs, dietary_restrictions: next });
   };
 
+  const validComplexityIds = MEAL_COMPLEXITY_OPTIONS.map((o) => o.id);
+  function normalizeMealComplexityLevels(arr) {
+    if (!Array.isArray(arr)) return ['quick_easy', 'everyday', 'from_scratch'];
+    const filtered = arr.filter((id) => validComplexityIds.includes(id));
+    return filtered.length ? filtered : ['everyday'];
+  }
+
+  const toggleMealComplexity = (id) => {
+    const current = prefs.meal_complexity_levels || [];
+    const next = current.includes(id)
+      ? current.filter((c) => c !== id)
+      : [...current, id];
+    if (next.length === 0) return;
+    setPrefs({ ...prefs, meal_complexity_levels: next });
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.save(prefs);
+      const res = await api.save(prefs);
+      if (res?.preferences) {
+        setPrefs({
+          breakfasts_per_week: clampMeals(res.preferences.breakfasts_per_week ?? 7),
+          lunches_per_week: clampMeals(res.preferences.lunches_per_week ?? 7),
+          dinners_per_week: clampMeals(res.preferences.dinners_per_week ?? 7),
+          people_per_meal: res.preferences.people_per_meal ?? 1,
+          dietary_restrictions: Array.isArray(res.preferences.dietary_restrictions) ? res.preferences.dietary_restrictions : [],
+          meal_complexity_levels: normalizeMealComplexityLevels(res.preferences.meal_complexity_levels),
+          protein_per_serving: res.preferences.protein_per_serving ?? 25,
+          carbs_per_serving: res.preferences.carbs_per_serving ?? 40,
+          fat_per_serving: res.preferences.fat_per_serving ?? 15,
+          recipe_units: res.preferences.recipe_units === 'metric' ? 'metric' : 'imperial',
+        });
+      }
     } catch (err) {
       alert(err.message || 'Failed to save');
     } finally {
@@ -164,6 +202,33 @@ export default function Preferences() {
               {d}
             </button>
           ))}
+        </div>
+      </Card>
+
+      <Card className="pref-section">
+        <h2 className="section-title">Recipe Style</h2>
+        <p className="section-desc">Choose one or more styles. You’ll get an equal mix of each selected level in your meal suggestions.</p>
+        <div className="complexity-options">
+          {MEAL_COMPLEXITY_OPTIONS.map((opt) => {
+            const selected = prefs.meal_complexity_levels || [];
+            const isChecked = selected.includes(opt.id);
+            const isOnlyOne = isChecked && selected.length === 1;
+            return (
+            <label key={opt.id} className={`complexity-option ${isChecked ? 'checked' : ''} ${isOnlyOne ? 'only-one' : ''}`}>
+              <input
+                type="checkbox"
+                checked={isChecked}
+                disabled={isOnlyOne}
+                onChange={() => toggleMealComplexity(opt.id)}
+                title={isOnlyOne ? 'At least one style must be selected' : undefined}
+              />
+              <span className="complexity-text">
+                <span className="complexity-label">{opt.label}</span>
+                <span className="complexity-desc">{opt.description}</span>
+              </span>
+            </label>
+            );
+          })}
         </div>
       </Card>
 

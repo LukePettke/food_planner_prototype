@@ -155,6 +155,66 @@
   border-color: var(--color-terracotta);
 }
 
+.complexity-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.complexity-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(196, 167, 125, 0.5);
+  background: var(--color-cream);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.complexity-option:hover {
+  border-color: var(--color-terracotta);
+}
+
+.complexity-option.checked {
+  border-color: var(--color-terracotta);
+  background: rgba(180, 99, 71, 0.08);
+}
+
+.complexity-option.only-one {
+  cursor: default;
+}
+
+.complexity-option.only-one input:disabled {
+  cursor: default;
+}
+
+.complexity-option input[type="checkbox"] {
+  margin-top: 0.2rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--color-terracotta);
+  flex-shrink: 0;
+}
+
+.complexity-option .complexity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.complexity-option .complexity-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-charcoal);
+}
+
+.complexity-option .complexity-desc {
+  font-size: 0.8125rem;
+  color: var(--color-brown);
+}
+
 .macro-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

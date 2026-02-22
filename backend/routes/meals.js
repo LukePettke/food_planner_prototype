@@ -13,6 +13,7 @@ function loadPreferences() {
   const p = db.prepare('SELECT * FROM preferences WHERE id = ?').get('default');
   if (p) {
     p.dietary_restrictions = JSON.parse(p.dietary_restrictions || '[]');
+    p.meal_complexity_levels = JSON.parse(p.meal_complexity_levels || '["quick_easy","everyday","from_scratch"]');
     p.breakfasts_per_week = Number(p.breakfasts_per_week);
     p.lunches_per_week = Number(p.lunches_per_week);
     p.dinners_per_week = Number(p.dinners_per_week);
@@ -27,11 +28,24 @@ function loadPreferences() {
     dinners_per_week: 7,
     people_per_meal: 1,
     dietary_restrictions: [],
+    meal_complexity_levels: ['quick_easy', 'everyday', 'from_scratch'],
     protein_per_serving: 25,
     carbs_per_serving: 40,
     fat_per_serving: 15,
     recipe_units: 'imperial',
   };
+}
+
+/** Split total count equally across selected complexity levels. Returns e.g. { quick_easy: 2, everyday: 2, from_scratch: 2 }. */
+function splitCountByLevel(total, levels) {
+  if (!Array.isArray(levels) || levels.length === 0 || total <= 0) return { everyday: total };
+  const perLevel = Math.floor(total / levels.length);
+  const remainder = total % levels.length;
+  const out = {};
+  levels.forEach((level, i) => {
+    out[level] = perLevel + (i < remainder ? 1 : 0);
+  });
+  return out;
 }
 
 const OPTIONS_PER_SLOT = 2;
@@ -44,16 +58,32 @@ function clampMealsPerWeek(n) {
 }
 
 // ----- Meal library: reuse saved ideas, save new AI ones -----
-function getMealsFromLibrary(mealType, limit) {
+// When allowedLevels is set, only return library meals that match the user's selected complexity (e.g. only quick_easy when they chose "simplest").
+function getMealsFromLibrary(mealType, limit, allowedLevels = null) {
   const db = getDb();
-  const rows = db.prepare(
-    `SELECT id, meal_type, name, description, tags, created_at FROM meal_library WHERE meal_type = ? ORDER BY RANDOM() LIMIT ?`
-  ).all(mealType, limit);
+  const validLevels = ['quick_easy', 'everyday', 'from_scratch'];
+  let rows;
+  if (Array.isArray(allowedLevels) && allowedLevels.length > 0) {
+    const placeholders = allowedLevels.filter((l) => validLevels.includes(l));
+    if (placeholders.length === 0) {
+      rows = [];
+    } else {
+      const ph = placeholders.map(() => '?').join(',');
+      rows = db.prepare(
+        `SELECT id, meal_type, name, description, tags, complexity_level, created_at FROM meal_library WHERE meal_type = ? AND complexity_level IN (${ph}) ORDER BY RANDOM() LIMIT ?`
+      ).all(mealType, ...placeholders, limit);
+    }
+  } else {
+    rows = db.prepare(
+      `SELECT id, meal_type, name, description, tags, complexity_level, created_at FROM meal_library WHERE meal_type = ? ORDER BY RANDOM() LIMIT ?`
+    ).all(mealType, limit);
+  }
   return rows.map((r) => ({
     name: r.name,
     description: r.description || '',
     tags: JSON.parse(r.tags || '[]'),
     estimatedPrepMinutes: 25,
+    complexity: validLevels.includes(r.complexity_level) ? r.complexity_level : 'everyday',
   }));
 }
 
@@ -71,12 +101,14 @@ function saveMealsToLibrary(mealType, meals) {
   if (!Array.isArray(meals) || meals.length === 0) return;
   const db = getDb();
   const insert = db.prepare(
-    `INSERT INTO meal_library (id, meal_type, name, description, tags, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`
+    `INSERT INTO meal_library (id, meal_type, name, description, tags, complexity_level, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
   );
+  const validLevels = ['quick_easy', 'everyday', 'from_scratch'];
   for (const m of meals) {
     const name = (m?.name || '').trim();
     if (!name || isMealInLibrary(mealType, name)) continue;
-    insert.run(randomUUID(), mealType, name, (m?.description || '').trim() || null, JSON.stringify(m?.tags || []));
+    const complexity = validLevels.includes(m?.complexity) ? m.complexity : null;
+    insert.run(randomUUID(), mealType, name, (m?.description || '').trim() || null, JSON.stringify(m?.tags || []), complexity);
   }
 }
 
@@ -106,14 +138,21 @@ router.post('/suggest', async (req, res) => {
         continue;
       }
 
-      const fromLibrary = getMealsFromLibrary(mealType, count);
+      const allowedLevels = Array.isArray(prefs.meal_complexity_levels) && prefs.meal_complexity_levels.length > 0
+        ? prefs.meal_complexity_levels
+        : null;
+      const fromLibrary = getMealsFromLibrary(mealType, count, allowedLevels);
       const needFromAi = Math.max(0, count - fromLibrary.length);
       let fromAi = [];
       if (needFromAi > 0) {
+        const levels = Array.isArray(prefs.meal_complexity_levels) && prefs.meal_complexity_levels.length > 0
+          ? prefs.meal_complexity_levels
+          : ['quick_easy', 'everyday', 'from_scratch'];
+        const countPerLevel = splitCountByLevel(needFromAi, levels);
         if (process.env.NODE_ENV !== 'production') {
-          console.log(`[meals/suggest] ${mealType}: ${fromLibrary.length} from library, ${needFromAi} from AI`);
+          console.log(`[meals/suggest] ${mealType}: ${fromLibrary.length} from library, ${needFromAi} from AI`, countPerLevel);
         }
-        fromAi = await getMealSuggestions(prefs, mealType, needFromAi, weekLabel);
+        fromAi = await getMealSuggestions(prefs, mealType, countPerLevel, weekLabel);
         saveMealsToLibrary(mealType, fromAi);
       }
 
@@ -184,7 +223,11 @@ router.post('/select', async (req, res) => {
     const plan = db.prepare('SELECT * FROM meal_plans WHERE id = ?').get(planId);
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
 
-    const mealsToFetch = selections.map((s) => ({ name: s.meal.name, description: s.meal.description }));
+    const mealsToFetch = selections.map((s) => ({
+      name: s.meal.name,
+      description: s.meal.description,
+      complexity: s.meal.complexity || 'everyday',
+    }));
     const recipes = await getRecipes(prefs, mealsToFetch);
     const shoppingList = await getShoppingList(prefs, recipes);
 

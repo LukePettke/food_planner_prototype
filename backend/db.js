@@ -24,6 +24,16 @@ export function initDb(path) {
   } catch (_) {
     // Column already exists (new install or already migrated)
   }
+  try {
+    db.exec(`ALTER TABLE preferences ADD COLUMN meal_complexity_levels TEXT DEFAULT '["quick_easy","everyday","from_scratch"]'`);
+  } catch (_) {
+    // Column already exists
+  }
+  try {
+    db.exec(`ALTER TABLE meal_library ADD COLUMN complexity_level TEXT`);
+  } catch (_) {
+    // Column already exists
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS preferences (
@@ -33,6 +43,7 @@ export function initDb(path) {
       dinners_per_week INTEGER DEFAULT 7,
       people_per_meal INTEGER DEFAULT 1,
       dietary_restrictions TEXT DEFAULT '[]',
+      meal_complexity_levels TEXT DEFAULT '["quick_easy","everyday","from_scratch"]',
       protein_per_serving INTEGER DEFAULT 25,
       carbs_per_serving INTEGER DEFAULT 40,
       fat_per_serving INTEGER DEFAULT 15,
