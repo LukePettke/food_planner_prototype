@@ -27,6 +27,7 @@ router.get('/', (req, res) => {
     if (pref) {
       pref.dietary_restrictions = JSON.parse(pref.dietary_restrictions || '[]');
       pref.allergies = JSON.parse(pref.allergies || '[]');
+      pref.appliances = JSON.parse(pref.appliances || '[]');
       pref.meal_complexity_levels = parseMealComplexityLevels(pref.meal_complexity_levels);
       res.json(pref);
     } else {
@@ -38,6 +39,7 @@ router.get('/', (req, res) => {
         people_per_meal: 1,
         dietary_restrictions: [],
         allergies: [],
+        appliances: [],
         meal_complexity_levels: ['quick_easy', 'everyday', 'from_scratch'],
         protein_per_serving: 25,
         carbs_per_serving: 40,
@@ -80,6 +82,7 @@ router.post('/', (req, res) => {
       people_per_meal = 1,
       dietary_restrictions = [],
       allergies = [],
+      appliances = [],
       meal_complexity_levels,
       protein_per_serving = 25,
       carbs_per_serving = 40,
@@ -92,10 +95,11 @@ router.post('/', (req, res) => {
     const d = clampMeals(dinners_per_week);
     const units = normalizeRecipeUnits(recipe_units);
     const complexity = normalizeMealComplexityLevels(meal_complexity_levels);
+    const appliancesList = Array.isArray(appliances) ? appliances.filter((a) => typeof a === 'string' && a.trim()).map((a) => a.trim()) : [];
 
     db.prepare(`
-      INSERT INTO preferences (id, breakfasts_per_week, lunches_per_week, dinners_per_week, people_per_meal, dietary_restrictions, allergies, meal_complexity_levels, protein_per_serving, carbs_per_serving, fat_per_serving, recipe_units, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      INSERT INTO preferences (id, breakfasts_per_week, lunches_per_week, dinners_per_week, people_per_meal, dietary_restrictions, allergies, appliances, meal_complexity_levels, protein_per_serving, carbs_per_serving, fat_per_serving, recipe_units, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
       ON CONFLICT(id) DO UPDATE SET
         breakfasts_per_week = excluded.breakfasts_per_week,
         lunches_per_week = excluded.lunches_per_week,
@@ -103,13 +107,14 @@ router.post('/', (req, res) => {
         people_per_meal = excluded.people_per_meal,
         dietary_restrictions = excluded.dietary_restrictions,
         allergies = excluded.allergies,
+        appliances = excluded.appliances,
         meal_complexity_levels = excluded.meal_complexity_levels,
         protein_per_serving = excluded.protein_per_serving,
         carbs_per_serving = excluded.carbs_per_serving,
         fat_per_serving = excluded.fat_per_serving,
         recipe_units = excluded.recipe_units,
         updated_at = datetime('now')
-    `).run(getPrefId(req), b, l, d, people_per_meal, JSON.stringify(dietary_restrictions), JSON.stringify(Array.isArray(allergies) ? allergies : []), JSON.stringify(complexity), protein_per_serving, carbs_per_serving, fat_per_serving, units);
+    `).run(getPrefId(req), b, l, d, people_per_meal, JSON.stringify(dietary_restrictions), JSON.stringify(Array.isArray(allergies) ? allergies : []), JSON.stringify(appliancesList), JSON.stringify(complexity), protein_per_serving, carbs_per_serving, fat_per_serving, units);
 
     const saved = db.prepare('SELECT * FROM preferences WHERE id = ?').get(getPrefId(req));
     const out = saved ? {
@@ -120,6 +125,7 @@ router.post('/', (req, res) => {
       people_per_meal: Number(saved.people_per_meal),
       dietary_restrictions: JSON.parse(saved.dietary_restrictions || '[]'),
       allergies: JSON.parse(saved.allergies || '[]'),
+      appliances: JSON.parse(saved.appliances || '[]'),
       meal_complexity_levels: parseMealComplexityLevels(saved.meal_complexity_levels),
       protein_per_serving: Number(saved.protein_per_serving),
       carbs_per_serving: Number(saved.carbs_per_serving),

@@ -15,6 +15,7 @@ function loadPreferences(userId) {
   if (p) {
     p.dietary_restrictions = JSON.parse(p.dietary_restrictions || '[]');
     p.allergies = JSON.parse(p.allergies || '[]');
+    p.appliances = JSON.parse(p.appliances || '[]');
     p.meal_complexity_levels = JSON.parse(p.meal_complexity_levels || '["quick_easy","everyday","from_scratch"]');
     p.breakfasts_per_week = Number(p.breakfasts_per_week);
     p.lunches_per_week = Number(p.lunches_per_week);
@@ -31,6 +32,7 @@ function loadPreferences(userId) {
     people_per_meal: 1,
     dietary_restrictions: [],
     allergies: [],
+    appliances: [],
     meal_complexity_levels: ['quick_easy', 'everyday', 'from_scratch'],
     protein_per_serving: 25,
     carbs_per_serving: 40,

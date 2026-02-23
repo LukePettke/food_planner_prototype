@@ -16,10 +16,16 @@ const MEAL_COMPLEXITY_OPTIONS = [
   { id: 'from_scratch', label: 'From-Scratch', description: 'More involved, chef-style recipes and new techniques.' },
 ];
 
+const PRESET_APPLIANCES = [
+  'Air fryer', 'Instant Pot', 'Slow cooker', 'Pressure cooker', 'Rice cooker',
+  'Food processor', 'Blender', 'Stand mixer', 'Toaster oven', 'Grill',
+];
+
 export default function Preferences() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [allergyInput, setAllergyInput] = useState('');
+  const [applianceInput, setApplianceInput] = useState('');
   const [prefs, setPrefs] = useState({
     breakfasts_per_week: 7,
     lunches_per_week: 7,
@@ -32,6 +38,7 @@ export default function Preferences() {
     carbs_per_serving: 40,
     fat_per_serving: 15,
     recipe_units: 'imperial',
+    appliances: [],
   });
 
   const clampMeals = (n) => Math.max(0, Math.min(7, Math.floor(Number(n)) || 0));
@@ -50,6 +57,7 @@ export default function Preferences() {
         carbs_per_serving: p.carbs_per_serving ?? 40,
         fat_per_serving: p.fat_per_serving ?? 15,
         recipe_units: p.recipe_units === 'metric' ? 'metric' : 'imperial',
+        appliances: Array.isArray(p.appliances) ? p.appliances : [],
       }))
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -71,6 +79,27 @@ export default function Preferences() {
 
   const removeAllergy = (name) => {
     setPrefs({ ...prefs, allergies: prefs.allergies.filter((a) => a !== name) });
+  };
+
+  const applianceList = prefs.appliances || [];
+  const toggleAppliance = (name) => {
+    const normalized = (name || '').trim();
+    if (!normalized) return;
+    const next = applianceList.some((a) => a.toLowerCase() === normalized.toLowerCase())
+      ? applianceList.filter((a) => a.toLowerCase() !== normalized.toLowerCase())
+      : [...applianceList, normalized];
+    setPrefs({ ...prefs, appliances: next });
+  };
+
+  const addCustomAppliance = () => {
+    const name = applianceInput.trim();
+    if (!name || applianceList.some((a) => a.toLowerCase() === name.toLowerCase())) return;
+    setPrefs({ ...prefs, appliances: [...applianceList, name] });
+    setApplianceInput('');
+  };
+
+  const removeAppliance = (name) => {
+    setPrefs({ ...prefs, appliances: applianceList.filter((a) => a !== name) });
   };
 
   const validComplexityIds = MEAL_COMPLEXITY_OPTIONS.map((o) => o.id);
@@ -106,6 +135,7 @@ export default function Preferences() {
           carbs_per_serving: res.preferences.carbs_per_serving ?? 40,
           fat_per_serving: res.preferences.fat_per_serving ?? 15,
           recipe_units: res.preferences.recipe_units === 'metric' ? 'metric' : 'imperial',
+          appliances: Array.isArray(res.preferences.appliances) ? res.preferences.appliances : [],
         });
       }
     } catch (err) {
@@ -275,6 +305,56 @@ export default function Preferences() {
             );
           })}
         </div>
+      </Card>
+
+      <Card className="pref-section">
+        <h2 className="section-title">Kitchen Appliances</h2>
+        <p className="section-desc">Select appliances you have (e.g. air fryer, Instant Pot). Meal suggestions and recipes will favor dishes you can make with these.</p>
+        <div className="dietary-grid">
+          {PRESET_APPLIANCES.map((name) => {
+            const isSelected = applianceList.some((a) => a.toLowerCase() === name.toLowerCase());
+            return (
+              <button
+                key={name}
+                type="button"
+                className={`dietary-chip ${isSelected ? 'active' : ''}`}
+                onClick={() => toggleAppliance(name)}
+              >
+                {name}
+              </button>
+            );
+          })}
+        </div>
+        <h3 className="allergies-subtitle">Add custom appliance</h3>
+        <p className="section-desc">Type an appliance name and click Add to include it in your list.</p>
+        <div className="allergies-add-row">
+          <input
+            type="text"
+            className="allergy-input"
+            placeholder="e.g. Sous vide, Dutch oven, Waffle maker"
+            value={applianceInput}
+            onChange={(e) => setApplianceInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomAppliance())}
+          />
+          <Button type="button" variant="secondary" onClick={addCustomAppliance}>Add</Button>
+        </div>
+        {applianceList.length > 0 && (
+          <div className="dietary-grid allergies-list">
+            {applianceList.map((a) => (
+              <span key={a} className="allergy-chip">
+                {a}
+                <button
+                  type="button"
+                  className="allergy-chip-remove"
+                  onClick={() => removeAppliance(a)}
+                  aria-label={`Remove ${a}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card className="pref-section">

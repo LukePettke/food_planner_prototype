@@ -39,6 +39,11 @@ export function initDb(path) {
   } catch (_) {
     // Column already exists
   }
+  try {
+    db.exec(`ALTER TABLE preferences ADD COLUMN appliances TEXT DEFAULT '[]'`);
+  } catch (_) {
+    // Column already exists
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -57,6 +62,7 @@ export function initDb(path) {
       people_per_meal INTEGER DEFAULT 1,
       dietary_restrictions TEXT DEFAULT '[]',
       allergies TEXT DEFAULT '[]',
+      appliances TEXT DEFAULT '[]',
       meal_complexity_levels TEXT DEFAULT '["quick_easy","everyday","from_scratch"]',
       protein_per_serving INTEGER DEFAULT 25,
       carbs_per_serving INTEGER DEFAULT 40,
