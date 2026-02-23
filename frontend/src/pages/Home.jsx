@@ -51,6 +51,18 @@ export default function Home() {
     }
   };
 
+  const handleDeletePlan = async (e, planId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm('Delete this meal plan? This cannot be undone.')) return;
+    try {
+      await api.deletePlan(planId);
+      setPlans((prev) => prev.filter((p) => p.id !== planId));
+    } catch (err) {
+      alert(err.message || 'Failed to delete plan');
+    }
+  };
+
   return (
     <div className="home">
       <section className="hero">
@@ -117,7 +129,7 @@ export default function Home() {
                     <h3 className="previous-plans-subtitle">All plans</h3>
                     <ul className="previous-plans-ul">
                       {plansToShow.map((p) => (
-                        <li key={p.id}>
+                        <li key={p.id} className="previous-plans-li">
                           <Link
                             to={`/recipes/${p.id}`}
                             className="previous-plans-link"
@@ -126,6 +138,15 @@ export default function Home() {
                             {p.week_label}
                             {p.has_selections ? '' : ' (no meals selected)'}
                           </Link>
+                          <button
+                            type="button"
+                            className="previous-plans-delete"
+                            onClick={(e) => handleDeletePlan(e, p.id)}
+                            aria-label={`Delete plan ${p.week_label}`}
+                            title="Delete this plan"
+                          >
+                            Delete
+                          </button>
                         </li>
                       ))}
                     </ul>

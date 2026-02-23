@@ -364,6 +364,24 @@ function formatWeekLabel(weekStartStr) {
   return `${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`;
 }
 
+// DELETE /api/meals/plan/:planId
+router.delete('/plan/:planId', (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { planId } = req.params;
+    const db = getDb();
+    const plan = db.prepare('SELECT id, preferences_id FROM meal_plans WHERE id = ?').get(planId);
+    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+    if (plan.preferences_id !== userId) return res.status(403).json({ error: 'Plan not found' });
+    db.prepare('DELETE FROM selected_meals WHERE plan_id = ?').run(planId);
+    db.prepare('DELETE FROM grocery_lists WHERE plan_id = ?').run(planId);
+    db.prepare('DELETE FROM meal_plans WHERE id = ?').run(planId);
+    res.status(204).send();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/meals/plan/:planId
 router.get('/plan/:planId', (req, res) => {
   try {
