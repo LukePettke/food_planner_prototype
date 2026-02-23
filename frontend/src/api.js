@@ -33,6 +33,7 @@ export const meals = {
   findPlanByDate: (date) => fetchApi(`/meals/plans?date=${encodeURIComponent(date)}`),
   deletePlan: (planId) => fetchApi(`/meals/plan/${planId}`, { method: 'DELETE' }),
   refreshImages: (planId) => fetchApi(`/meals/refresh-images/${planId}`, { method: 'POST', body: '{}' }),
+  regenerateRecipes: (planId) => fetchApi(`/meals/plan/${planId}/regenerate-recipes`, { method: 'POST', body: '{}' }),
 };
 
 export const calendar = {

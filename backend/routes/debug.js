@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getDb } from '../db.js';
 import { verifyOpenAIKey } from '../services/ai.js';
+import { verifySpoonacularKey } from '../services/spoonacular.js';
 
 const router = Router();
 
@@ -11,6 +12,29 @@ router.get('/openai', async (req, res) => {
     res.json(result);
   } catch (err) {
     res.json({ ok: false, error: err.message });
+  }
+});
+
+// GET /api/debug/spoonacular - verify Spoonacular API key is set and valid
+router.get('/spoonacular', async (req, res) => {
+  try {
+    const result = await verifySpoonacularKey();
+    res.json(result);
+  } catch (err) {
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+// GET /api/debug/verify-keys - check both OpenAI and Spoonacular (for recipes)
+router.get('/verify-keys', async (req, res) => {
+  try {
+    const [openai, spoonacular] = await Promise.all([verifyOpenAIKey(), verifySpoonacularKey()]);
+    res.json({
+      openai: { ok: openai.ok, keySet: openai.keySet, error: openai.error },
+      spoonacular: { ok: spoonacular.ok, keySet: spoonacular.keySet, error: spoonacular.error },
+    });
+  } catch (err) {
+    res.json({ openai: { ok: false }, spoonacular: { ok: false }, error: err.message });
   }
 });
 

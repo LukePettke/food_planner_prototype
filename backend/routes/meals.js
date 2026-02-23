@@ -117,7 +117,7 @@ function saveMealsToLibrary(mealType, meals) {
 router.post('/suggest', async (req, res) => {
   try {
     const { weekStart } = req.body;
-    const userId = req.user?.id;
+    const userId = req.user?.id ?? 'default';
     const prefs = loadPreferences(userId);
     const start = weekStart ? new Date(weekStart) : startOfWeek(new Date(), { weekStartsOn: 1 });
     const weekLabel = format(start, 'MMM d, yyyy');
@@ -199,7 +199,7 @@ router.post('/suggest', async (req, res) => {
 // POST /api/meals/select
 router.post('/select', async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.id ?? 'default';
     const { planId, selections: rawSelections } = req.body;
     // Accept either: selections: [{ mealType, dayIndex, meal }] OR assignments: { breakfast: { 0: meal }, ... }
     let selections;
@@ -272,7 +272,7 @@ router.post('/select', async (req, res) => {
 // POST /api/meals/refresh-images/:planId - re-fetch photos for existing plan
 router.post('/refresh-images/:planId', async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.id ?? 'default';
     const db = getDb();
     const plan = db.prepare('SELECT * FROM meal_plans WHERE id = ?').get(req.params.planId);
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
@@ -312,7 +312,7 @@ router.post('/refresh-images/:planId', async (req, res) => {
 // GET /api/meals/plans - list user's meal plans (optionally ?date=YYYY-MM-DD to find plan for that week)
 router.get('/plans', (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.id ?? 'default';
     const dateParam = req.query.date;
     const db = getDb();
 
@@ -367,7 +367,7 @@ function formatWeekLabel(weekStartStr) {
 // DELETE /api/meals/plan/:planId
 router.delete('/plan/:planId', (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.id ?? 'default';
     const { planId } = req.params;
     const db = getDb();
     const plan = db.prepare('SELECT id, preferences_id FROM meal_plans WHERE id = ?').get(planId);
@@ -382,15 +382,78 @@ router.delete('/plan/:planId', (req, res) => {
   }
 });
 
+// POST /api/meals/plan/:planId/regenerate-recipes - re-fetch real/AI recipes for existing selected meals
+router.post('/plan/:planId/regenerate-recipes', async (req, res) => {
+  try {
+    const userId = req.user?.id ?? 'default';
+    const planId = req.params.planId;
+    const db = getDb();
+    const plan = db.prepare('SELECT * FROM meal_plans WHERE id = ?').get(planId);
+    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+    if (plan.preferences_id !== userId) return res.status(403).json({ error: 'Plan not found' });
+
+    const selected = db.prepare('SELECT * FROM selected_meals WHERE plan_id = ? ORDER BY meal_type, day').all(planId);
+    if (!selected.length) return res.status(400).json({ error: 'No selected meals to regenerate' });
+
+    const prefs = loadPreferences(userId);
+    const mealsToFetch = selected.map((s) => {
+      const recipe = typeof s.recipe === 'string' ? JSON.parse(s.recipe || '{}') : (s.recipe || {});
+      return {
+        name: s.meal_name,
+        description: '',
+        complexity: recipe.complexity || 'everyday',
+      };
+    });
+    const recipes = await getRecipes(prefs, mealsToFetch);
+    const shoppingList = await getShoppingList(prefs, recipes);
+
+    const updateMeal = db.prepare(
+      'UPDATE selected_meals SET recipe = ?, ingredients = ?, macronutrients = ? WHERE id = ?'
+    );
+    for (let i = 0; i < selected.length; i++) {
+      const recipe = recipes[i] || recipes[0];
+      const fullRecipe = { ...recipe, name: recipe.name || selected[i].meal_name };
+      updateMeal.run(
+        JSON.stringify(fullRecipe),
+        JSON.stringify(recipe.ingredients || []),
+        JSON.stringify(recipe.macronutrients || {}),
+        selected[i].id
+      );
+    }
+
+    db.prepare('DELETE FROM grocery_lists WHERE plan_id = ?').run(planId);
+    const groceryId = randomUUID();
+    db.prepare('INSERT INTO grocery_lists (id, plan_id, items) VALUES (?, ?, ?)')
+      .run(groceryId, planId, JSON.stringify(shoppingList));
+
+    plan.meals = JSON.parse(plan.meals || '{}');
+    const updatedSelected = db.prepare('SELECT * FROM selected_meals WHERE plan_id = ?').all(planId);
+    const grocery = db.prepare('SELECT * FROM grocery_lists WHERE plan_id = ?').get(planId);
+    res.json({
+      plan,
+      selectedMeals: updatedSelected.map((s) => ({
+        ...s,
+        recipe: JSON.parse(s.recipe || '{}'),
+        ingredients: JSON.parse(s.ingredients || '[]'),
+        macronutrients: JSON.parse(s.macronutrients || '{}'),
+      })),
+      groceryList: grocery ? JSON.parse(grocery.items || '[]') : [],
+    });
+  } catch (err) {
+    console.error('Regenerate recipes error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/meals/plan/:planId
 router.get('/plan/:planId', (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.id ?? 'default';
     const db = getDb();
     const plan = db.prepare('SELECT * FROM meal_plans WHERE id = ?').get(req.params.planId);
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
     if (plan.preferences_id !== userId) return res.status(403).json({ error: 'Plan not found' });
-    plan.meals = JSON.parse(plan.meals || '[]');
+    plan.meals = JSON.parse(plan.meals || '{}');
 
     const selected = db.prepare('SELECT * FROM selected_meals WHERE plan_id = ?').all(req.params.planId);
     const grocery = db.prepare('SELECT * FROM grocery_lists WHERE plan_id = ?').get(req.params.planId);

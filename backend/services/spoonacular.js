@@ -13,6 +13,13 @@ function hasApi() {
   return !!getApiKey();
 }
 
+/** True if the API response indicates quota/limit or other non-success. */
+function isSpoonacularErrorResponse(res, data) {
+  if (!res.ok) return true;
+  const msg = (data?.message || data?.status || '').toString();
+  return msg.includes('points limit') || msg.includes('daily limit');
+}
+
 /**
  * Search for a recipe by name. Returns the first result's id or null.
  * @param {string} query - Meal/recipe name (e.g. "Salmon Teriyaki")
@@ -36,8 +43,13 @@ export async function searchRecipe(query, options = {}) {
 
   try {
     const res = await fetch(`${BASE}/recipes/complexSearch?${params.toString()}`);
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if (isSpoonacularErrorResponse(res, data)) {
+      if (process.env.NODE_ENV !== 'production' && data?.message) {
+        console.warn('Spoonacular quota/error:', data.message);
+      }
+      return null;
+    }
     const id = data?.results?.[0]?.id;
     return id != null ? id : null;
   } catch (err) {
@@ -73,8 +85,8 @@ export async function getRecipeById(recipeId, preferences = {}) {
 
   try {
     const res = await fetch(`${BASE}/recipes/${recipeId}/information?${params.toString()}`);
-    if (!res.ok) return null;
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+    if (isSpoonacularErrorResponse(res, data)) return null;
     return mapToAppRecipe(data, preferences);
   } catch (err) {
     console.error('Spoonacular getRecipe error:', err.message);
@@ -164,6 +176,36 @@ export async function getRecipeForMeal(mealName, preferences) {
   });
   if (id == null) return null;
   return getRecipeById(id, preferences);
+}
+
+/** Call Spoonacular with a minimal request to verify API key. Returns { ok, keySet, error? }. */
+export async function verifySpoonacularKey() {
+  const key = getApiKey();
+  if (!key) {
+    return { ok: false, keySet: false, error: 'SPOONACULAR_API_KEY not set in .env' };
+  }
+  try {
+    const res = await fetch(`${BASE}/recipes/complexSearch?apiKey=${encodeURIComponent(key)}&query=pasta&number=1`);
+    const data = await res.json().catch(() => ({}));
+    const msg = data?.message || data?.status || '';
+    const isQuotaError = typeof msg === 'string' && (msg.includes('points limit') || msg.includes('daily limit') || res.status === 402 || res.status === 429);
+    if (isQuotaError) {
+      return {
+        ok: false,
+        keySet: true,
+        error: 'Spoonacular daily limit (50 points) reached. The app will use OpenAI for recipes until the limit resets (usually midnight UTC).',
+      };
+    }
+    if (res.status === 401) {
+      return { ok: false, keySet: true, error: 'Invalid or unauthorized API key' };
+    }
+    if (!res.ok) {
+      return { ok: false, keySet: true, error: msg || res.statusText || `HTTP ${res.status}` };
+    }
+    return { ok: true, keySet: true };
+  } catch (err) {
+    return { ok: false, keySet: true, error: err.message };
+  }
 }
 
 export { hasApi };
