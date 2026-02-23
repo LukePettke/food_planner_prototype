@@ -34,11 +34,12 @@ router.post('/token', async (req, res) => {
     const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri || REDIRECT_URI);
     const { tokens } = await oauth2Client.getToken(code);
     const db = getDb();
+    const userId = req.user.id;
     db.prepare(`
       INSERT INTO google_tokens (id, access_token, refresh_token, expiry_date)
-      VALUES ('default', ?, ?, ?)
+      VALUES (?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET access_token = excluded.access_token, refresh_token = COALESCE(excluded.refresh_token, refresh_token), expiry_date = excluded.expiry_date
-    `).run(tokens.access_token, tokens.refresh_token || null, tokens.expiry_date || null);
+    `).run(userId, tokens.access_token, tokens.refresh_token || null, tokens.expiry_date || null);
     res.json({ ok: true });
   } catch (err) {
     console.error('Token exchange error:', err);
@@ -48,17 +49,21 @@ router.post('/token', async (req, res) => {
 
 // POST /api/calendar/events - add meal plan events
 router.post('/events', async (req, res) => {
+  const userId = req.user?.id;
   const { planId, weekStart } = req.body;
   const db = getDb();
-  const tokens = db.prepare('SELECT * FROM google_tokens WHERE id = ?').get('default');
+  const tokens = db.prepare('SELECT * FROM google_tokens WHERE id = ?').get(userId);
   if (!tokens || !tokens.access_token) {
     return res.status(401).json({ error: 'Google Calendar not connected. Authorize first.' });
   }
 
   const plan = db.prepare('SELECT * FROM meal_plans WHERE id = ?').get(planId);
+  if (!plan || plan.preferences_id !== userId) {
+    return res.status(404).json({ error: 'Plan not found' });
+  }
   const selected = db.prepare('SELECT * FROM selected_meals WHERE plan_id = ?').all(planId);
-  if (!plan || selected.length === 0) {
-    return res.status(400).json({ error: 'Plan or selected meals not found' });
+  if (selected.length === 0) {
+    return res.status(400).json({ error: 'No selected meals for this plan' });
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID;

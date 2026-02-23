@@ -2,7 +2,10 @@ import { Router } from 'express';
 import { getDb } from '../db.js';
 
 const router = Router();
-const PREF_ID = 'default';
+
+function getPrefId(req) {
+  return req.user?.id ?? 'default';
+}
 
 function parseMealComplexityLevels(raw) {
   if (raw == null || raw === '') return ['quick_easy', 'everyday', 'from_scratch'];
@@ -19,14 +22,15 @@ function parseMealComplexityLevels(raw) {
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const pref = db.prepare('SELECT * FROM preferences WHERE id = ?').get(PREF_ID);
+    const prefId = getPrefId(req);
+    const pref = db.prepare('SELECT * FROM preferences WHERE id = ?').get(prefId);
     if (pref) {
       pref.dietary_restrictions = JSON.parse(pref.dietary_restrictions || '[]');
       pref.meal_complexity_levels = parseMealComplexityLevels(pref.meal_complexity_levels);
       res.json(pref);
     } else {
       res.json({
-        id: PREF_ID,
+        id: prefId,
         breakfasts_per_week: 7,
         lunches_per_week: 7,
         dinners_per_week: 7,
@@ -101,9 +105,9 @@ router.post('/', (req, res) => {
         fat_per_serving = excluded.fat_per_serving,
         recipe_units = excluded.recipe_units,
         updated_at = datetime('now')
-    `).run(PREF_ID, b, l, d, people_per_meal, JSON.stringify(dietary_restrictions), JSON.stringify(complexity), protein_per_serving, carbs_per_serving, fat_per_serving, units);
+    `).run(getPrefId(req), b, l, d, people_per_meal, JSON.stringify(dietary_restrictions), JSON.stringify(complexity), protein_per_serving, carbs_per_serving, fat_per_serving, units);
 
-    const saved = db.prepare('SELECT * FROM preferences WHERE id = ?').get(PREF_ID);
+    const saved = db.prepare('SELECT * FROM preferences WHERE id = ?').get(getPrefId(req));
     const out = saved ? {
       id: saved.id,
       breakfasts_per_week: Number(saved.breakfasts_per_week),

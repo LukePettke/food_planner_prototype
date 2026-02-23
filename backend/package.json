@@ -9,11 +9,13 @@
     "clear-meals": "node scripts/clear-meals-and-verify-openai.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "better-sqlite3": "^11.5.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "googleapis": "^144.0.0",
+    "jsonwebtoken": "^9.0.3",
     "openai": "^4.73.0"
   }
 }

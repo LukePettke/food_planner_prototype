@@ -1,7 +1,9 @@
-const API = '/api';
+const API = import.meta.env.VITE_API_URL || '/api';
 
 async function fetchApi(path, options = {}) {
-  const res = await fetch(`${API}${path}`, {
+  const base = API.replace(/\/$/, '');
+  const pathNorm = path.startsWith('/') ? path : `/${path}`;
+  const res = await fetch(`${base}${pathNorm}`, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...options.headers },
     credentials: 'include',
@@ -10,6 +12,13 @@ async function fetchApi(path, options = {}) {
   if (!res.ok) throw new Error(data?.error || res.statusText);
   return data;
 }
+
+export const auth = {
+  getMe: () => fetchApi('/auth/me'),
+  login: (email, password) => fetchApi('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  signup: (email, password) => fetchApi('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  logout: () => fetchApi('/auth/logout', { method: 'POST', body: '{}' }),
+};
 
 export const preferences = {
   get: () => fetchApi('/preferences'),

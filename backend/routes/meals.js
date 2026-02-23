@@ -8,9 +8,10 @@ import { format, addDays, startOfWeek } from 'date-fns';
 const router = Router();
 
 // Load preferences helper - explicitly coerce meal counts so DB string/int doesn't break math
-function loadPreferences() {
+function loadPreferences(userId) {
   const db = getDb();
-  const p = db.prepare('SELECT * FROM preferences WHERE id = ?').get('default');
+  const prefId = userId || 'default';
+  const p = db.prepare('SELECT * FROM preferences WHERE id = ?').get(prefId);
   if (p) {
     p.dietary_restrictions = JSON.parse(p.dietary_restrictions || '[]');
     p.meal_complexity_levels = JSON.parse(p.meal_complexity_levels || '["quick_easy","everyday","from_scratch"]');
@@ -116,7 +117,8 @@ function saveMealsToLibrary(mealType, meals) {
 router.post('/suggest', async (req, res) => {
   try {
     const { weekStart } = req.body;
-    const prefs = loadPreferences();
+    const userId = req.user?.id;
+    const prefs = loadPreferences(userId);
     const start = weekStart ? new Date(weekStart) : startOfWeek(new Date(), { weekStartsOn: 1 });
     const weekLabel = format(start, 'MMM d, yyyy');
     const dayLabels = [0, 1, 2, 3, 4, 5, 6].map((d) => format(addDays(start, d), 'EEE'));
@@ -173,8 +175,8 @@ router.post('/suggest', async (req, res) => {
     const db = getDb();
     db.prepare(`
       INSERT INTO meal_plans (id, preferences_id, week_start, meals)
-      VALUES (?, 'default', ?, ?)
-    `).run(planId, format(start, 'yyyy-MM-dd'), JSON.stringify(results));
+      VALUES (?, ?, ?, ?)
+    `).run(planId, userId || 'default', format(start, 'yyyy-MM-dd'), JSON.stringify(results));
 
     const optionCounts = {
       breakfast: (results.breakfastOptions || []).length,
@@ -197,6 +199,7 @@ router.post('/suggest', async (req, res) => {
 // POST /api/meals/select
 router.post('/select', async (req, res) => {
   try {
+    const userId = req.user?.id;
     const { planId, selections: rawSelections } = req.body;
     // Accept either: selections: [{ mealType, dayIndex, meal }] OR assignments: { breakfast: { 0: meal }, ... }
     let selections;
@@ -218,10 +221,11 @@ router.post('/select', async (req, res) => {
     }
     if (!planId) return res.status(400).json({ error: 'planId required' });
 
-    const prefs = loadPreferences();
+    const prefs = loadPreferences(userId);
     const db = getDb();
     const plan = db.prepare('SELECT * FROM meal_plans WHERE id = ?').get(planId);
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
+    if (plan.preferences_id !== userId) return res.status(403).json({ error: 'Plan not found' });
 
     const mealsToFetch = selections.map((s) => ({
       name: s.meal.name,
@@ -268,9 +272,11 @@ router.post('/select', async (req, res) => {
 // POST /api/meals/refresh-images/:planId - re-fetch photos for existing plan
 router.post('/refresh-images/:planId', async (req, res) => {
   try {
+    const userId = req.user?.id;
     const db = getDb();
     const plan = db.prepare('SELECT * FROM meal_plans WHERE id = ?').get(req.params.planId);
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
+    if (plan.preferences_id !== userId) return res.status(403).json({ error: 'Plan not found' });
 
     const meals = JSON.parse(plan.meals || '{}');
     if (!meals.breakfastOptions) return res.status(400).json({ error: 'Plan format not supported for image refresh' });
@@ -306,9 +312,11 @@ router.post('/refresh-images/:planId', async (req, res) => {
 // GET /api/meals/plan/:planId
 router.get('/plan/:planId', (req, res) => {
   try {
+    const userId = req.user?.id;
     const db = getDb();
     const plan = db.prepare('SELECT * FROM meal_plans WHERE id = ?').get(req.params.planId);
     if (!plan) return res.status(404).json({ error: 'Plan not found' });
+    if (plan.preferences_id !== userId) return res.status(403).json({ error: 'Plan not found' });
     plan.meals = JSON.parse(plan.meals || '[]');
 
     const selected = db.prepare('SELECT * FROM selected_meals WHERE plan_id = ?').all(req.params.planId);

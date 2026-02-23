@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
 import { createDb, initDb } from './db.js';
+import { requireAuth } from './middleware/auth.js';
+import authRoutes from './routes/auth.js';
 import preferencesRoutes from './routes/preferences.js';
 import mealsRoutes from './routes/meals.js';
 import calendarRoutes from './routes/calendar.js';
@@ -42,11 +44,12 @@ app.use((req, res, next) => {
 const dbPath = process.env.DATABASE_PATH || join(__dirname, 'data', 'mealplanner.db');
 initDb(dbPath);
 
-// API routes
-app.use('/api/preferences', preferencesRoutes);
-app.use('/api/meals', mealsRoutes);
-app.use('/api/calendar', calendarRoutes);
-app.use('/api/grocery', groceryRoutes);
+// API routes (auth is public; others require login)
+app.use('/api/auth', authRoutes);
+app.use('/api/preferences', requireAuth, preferencesRoutes);
+app.use('/api/meals', requireAuth, mealsRoutes);
+app.use('/api/calendar', requireAuth, calendarRoutes);
+app.use('/api/grocery', requireAuth, groceryRoutes);
 app.use('/api/debug', debugRoutes);
 
 app.get('/api/health', (_, res) => res.json({ ok: true }));

@@ -36,6 +36,14 @@ export function initDb(path) {
   }
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
     CREATE TABLE IF NOT EXISTS preferences (
       id TEXT PRIMARY KEY,
       breakfasts_per_week INTEGER DEFAULT 7,
