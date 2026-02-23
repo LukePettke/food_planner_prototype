@@ -29,6 +29,148 @@
   font-size: 1rem;
 }
 
+.previous-plans-section {
+  margin-top: 2.5rem;
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.previous-plans-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: var(--color-warm-white);
+  border: 1px solid rgba(196, 167, 125, 0.35);
+  border-radius: var(--radius);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--color-charcoal);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.previous-plans-toggle:hover {
+  border-color: var(--color-terracotta);
+  box-shadow: var(--shadow);
+}
+
+.previous-plans-title {
+  font-family: var(--font-display);
+}
+
+.previous-plans-chevron {
+  font-size: 0.75rem;
+  color: var(--color-brown);
+}
+
+.previous-plans-dropdown {
+  margin-top: 0.5rem;
+  padding: 1.25rem;
+  background: var(--color-warm-white);
+  border: 1px solid rgba(196, 167, 125, 0.25);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.previous-plans-loading {
+  color: var(--color-brown);
+  font-size: 0.9375rem;
+}
+
+.previous-plans-subtitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-charcoal);
+  margin-bottom: 0.5rem;
+}
+
+.previous-plans-current {
+  margin-bottom: 1.25rem;
+}
+
+.previous-plans-none {
+  font-size: 0.9375rem;
+  color: var(--color-brown);
+}
+
+.previous-plans-none a {
+  font-weight: 600;
+}
+
+.previous-plans-search {
+  margin-bottom: 1.25rem;
+}
+
+.previous-plans-search-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.previous-plans-date-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d6d3d1;
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+  background: var(--color-cream);
+}
+
+.previous-plans-search-btn {
+  flex-shrink: 0;
+}
+
+.previous-plans-search-error {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #b91c1c;
+}
+
+.previous-plans-list {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(45, 42, 38, 0.08);
+}
+
+.previous-plans-ul {
+  list-style: none;
+}
+
+.previous-plans-ul li {
+  margin-bottom: 0.5rem;
+}
+
+.previous-plans-link {
+  font-size: 0.9375rem;
+  color: var(--color-terracotta-dark);
+  font-weight: 500;
+}
+
+.previous-plans-link:hover {
+  text-decoration: underline;
+  color: var(--color-charcoal);
+}
+
+.previous-plans-show-more {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-terracotta-dark);
+  background: transparent;
+  border: 1px solid rgba(196, 167, 125, 0.4);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.previous-plans-show-more:hover {
+  background: rgba(196, 167, 125, 0.12);
+  border-color: var(--color-terracotta);
+}
+
 .steps {
   margin-top: 4rem;
 }

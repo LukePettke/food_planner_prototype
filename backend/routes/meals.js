@@ -3,7 +3,7 @@ import { getDb } from '../db.js';
 import { randomUUID } from 'crypto';
 import { getMealSuggestions, getRecipes, getShoppingList } from '../services/ai.js';
 import { addImagesToOptions } from '../services/images.js';
-import { format, addDays, startOfWeek } from 'date-fns';
+import { format, addDays, startOfWeek, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 
 const router = Router();
 
@@ -308,6 +308,61 @@ router.post('/refresh-images/:planId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// GET /api/meals/plans - list user's meal plans (optionally ?date=YYYY-MM-DD to find plan for that week)
+router.get('/plans', (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const dateParam = req.query.date;
+    const db = getDb();
+
+    if (dateParam) {
+      const d = parseISO(dateParam);
+      if (isNaN(d.getTime())) return res.status(400).json({ error: 'Invalid date' });
+      const day = startOfDay(d);
+      const rows = db.prepare(
+        'SELECT id, week_start FROM meal_plans WHERE preferences_id = ? ORDER BY week_start DESC'
+      ).all(userId);
+      const plan = rows.find((p) => {
+        const weekStart = parseISO(p.week_start);
+        const weekEnd = endOfDay(addDays(weekStart, 6));
+        return isWithinInterval(day, { start: weekStart, end: weekEnd });
+      });
+      if (!plan) return res.status(404).json({ error: 'No meal plan found for that week' });
+      const selectedCount = db.prepare('SELECT COUNT(*) as n FROM selected_meals WHERE plan_id = ?').get(plan.id);
+      return res.json({
+        plan: {
+          id: plan.id,
+          week_start: plan.week_start,
+          week_label: formatWeekLabel(plan.week_start),
+          has_selections: (selectedCount?.n ?? 0) > 0,
+        },
+      });
+    }
+
+    const rows = db.prepare(
+      'SELECT id, week_start FROM meal_plans WHERE preferences_id = ? ORDER BY week_start DESC'
+    ).all(userId);
+    const plans = rows.map((p) => {
+      const selectedCount = db.prepare('SELECT COUNT(*) as n FROM selected_meals WHERE plan_id = ?').get(p.id);
+      return {
+        id: p.id,
+        week_start: p.week_start,
+        week_label: formatWeekLabel(p.week_start),
+        has_selections: (selectedCount?.n ?? 0) > 0,
+      };
+    });
+    res.json({ plans });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+function formatWeekLabel(weekStartStr) {
+  const start = parseISO(weekStartStr);
+  const end = addDays(start, 6);
+  return `${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`;
+}
 
 // GET /api/meals/plan/:planId
 router.get('/plan/:planId', (req, res) => {
