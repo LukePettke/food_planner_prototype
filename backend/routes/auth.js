@@ -49,8 +49,8 @@ router.post('/signup', async (req, res) => {
 
     // Create default preferences row for this user
     db.prepare(`
-      INSERT INTO preferences (id, breakfasts_per_week, lunches_per_week, dinners_per_week, people_per_meal, dietary_restrictions, meal_complexity_levels, protein_per_serving, carbs_per_serving, fat_per_serving, recipe_units)
-      VALUES (?, 7, 7, 7, 1, '[]', '["quick_easy","everyday","from_scratch"]', 25, 40, 15, 'imperial')
+      INSERT INTO preferences (id, breakfasts_per_week, lunches_per_week, dinners_per_week, people_per_meal, dietary_restrictions, allergies, meal_complexity_levels, protein_per_serving, carbs_per_serving, fat_per_serving, recipe_units)
+      VALUES (?, 7, 7, 7, 1, '[]', '[]', '["quick_easy","everyday","from_scratch"]', 25, 40, 15, 'imperial')
     `).run(id);
 
     const token = signToken(id);

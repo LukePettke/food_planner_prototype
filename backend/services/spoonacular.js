@@ -37,8 +37,11 @@ export async function searchRecipe(query, options = {}) {
     instructionsRequired: 'true',
   });
   if (options.diet) params.set('diet', mapDiet(options.diet));
-  if (options.intolerances && options.intolerances.length) {
-    params.set('intolerances', options.intolerances.slice(0, 3).join(','));
+  const intolerances = options.intolerances && options.intolerances.length
+    ? options.intolerances
+    : mapAllergiesToIntolerances(options.allergies || []);
+  if (intolerances.length) {
+    params.set('intolerances', intolerances.slice(0, 5).join(','));
   }
 
   try {
@@ -66,6 +69,29 @@ function mapDiet(dietaryRestrictions) {
   if (d.some((x) => x.includes('keto'))) return 'ketogenic';
   if (d.some((x) => x.includes('paleo'))) return 'paleo';
   return '';
+}
+
+/** Map app allergy labels to Spoonacular intolerance parameter values. */
+function mapAllergiesToIntolerances(allergies) {
+  if (!Array.isArray(allergies) || allergies.length === 0) return [];
+  const mapping = {
+    peanut: 'peanut',
+    'tree nuts': 'tree nut',
+    shellfish: 'shellfish',
+    fish: 'seafood',
+    dairy: 'dairy',
+    egg: 'egg',
+    soy: 'soy',
+    wheat: 'wheat',
+    sesame: 'sesame',
+  };
+  const out = [];
+  for (const a of allergies) {
+    const key = (a || '').toLowerCase().trim();
+    const val = mapping[key];
+    if (val && !out.includes(val)) out.push(val);
+  }
+  return out;
 }
 
 /**
@@ -172,7 +198,7 @@ export async function getRecipeForMeal(mealName, preferences) {
   if (!hasApi()) return null;
   const id = await searchRecipe(mealName, {
     diet: preferences?.dietary_restrictions,
-    intolerances: preferences?.dietary_restrictions,
+    allergies: preferences?.allergies,
   });
   if (id == null) return null;
   return getRecipeById(id, preferences);

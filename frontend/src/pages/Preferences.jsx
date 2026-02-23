@@ -19,12 +19,14 @@ const MEAL_COMPLEXITY_OPTIONS = [
 export default function Preferences() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [allergyInput, setAllergyInput] = useState('');
   const [prefs, setPrefs] = useState({
     breakfasts_per_week: 7,
     lunches_per_week: 7,
     dinners_per_week: 7,
     people_per_meal: 1,
     dietary_restrictions: [],
+    allergies: [],
     meal_complexity_levels: ['quick_easy', 'everyday', 'from_scratch'],
     protein_per_serving: 25,
     carbs_per_serving: 40,
@@ -42,6 +44,7 @@ export default function Preferences() {
         dinners_per_week: clampMeals(p.dinners_per_week ?? 7),
         people_per_meal: p.people_per_meal ?? 1,
         dietary_restrictions: Array.isArray(p.dietary_restrictions) ? p.dietary_restrictions : [],
+        allergies: Array.isArray(p.allergies) ? p.allergies : [],
         meal_complexity_levels: normalizeMealComplexityLevels(p.meal_complexity_levels),
         protein_per_serving: p.protein_per_serving ?? 25,
         carbs_per_serving: p.carbs_per_serving ?? 40,
@@ -57,6 +60,17 @@ export default function Preferences() {
       ? prefs.dietary_restrictions.filter((d) => d !== name)
       : [...prefs.dietary_restrictions, name];
     setPrefs({ ...prefs, dietary_restrictions: next });
+  };
+
+  const addAllergy = () => {
+    const name = allergyInput.trim();
+    if (!name || prefs.allergies.some((a) => a.toLowerCase() === name.toLowerCase())) return;
+    setPrefs({ ...prefs, allergies: [...prefs.allergies, name] });
+    setAllergyInput('');
+  };
+
+  const removeAllergy = (name) => {
+    setPrefs({ ...prefs, allergies: prefs.allergies.filter((a) => a !== name) });
   };
 
   const validComplexityIds = MEAL_COMPLEXITY_OPTIONS.map((o) => o.id);
@@ -86,6 +100,7 @@ export default function Preferences() {
           dinners_per_week: clampMeals(res.preferences.dinners_per_week ?? 7),
           people_per_meal: res.preferences.people_per_meal ?? 1,
           dietary_restrictions: Array.isArray(res.preferences.dietary_restrictions) ? res.preferences.dietary_restrictions : [],
+          allergies: Array.isArray(res.preferences.allergies) ? res.preferences.allergies : [],
           meal_complexity_levels: normalizeMealComplexityLevels(res.preferences.meal_complexity_levels),
           protein_per_serving: res.preferences.protein_per_serving ?? 25,
           carbs_per_serving: res.preferences.carbs_per_serving ?? 40,
@@ -203,6 +218,36 @@ export default function Preferences() {
             </button>
           ))}
         </div>
+        <h3 className="allergies-subtitle">Allergies</h3>
+        <p className="section-desc">Type an allergy and click Add. Meals and recipes will exclude these ingredients.</p>
+        <div className="allergies-add-row">
+          <input
+            type="text"
+            className="allergy-input"
+            placeholder="e.g. Peanut, shellfish, dairy"
+            value={allergyInput}
+            onChange={(e) => setAllergyInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addAllergy())}
+          />
+          <Button type="button" variant="secondary" onClick={addAllergy}>Add</Button>
+        </div>
+        {prefs.allergies.length > 0 && (
+          <div className="dietary-grid allergies-list">
+            {prefs.allergies.map((a) => (
+              <span key={a} className="allergy-chip">
+                {a}
+                <button
+                  type="button"
+                  className="allergy-chip-remove"
+                  onClick={() => removeAllergy(a)}
+                  aria-label={`Remove ${a}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card className="pref-section">

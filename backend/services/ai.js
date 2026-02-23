@@ -10,6 +10,7 @@ const DEFAULT_PREFERENCES = {
   dinners_per_week: 7,
   people_per_meal: 1,
   dietary_restrictions: [],
+  allergies: [],
   meal_complexity_levels: ['quick_easy', 'everyday', 'from_scratch'],
   protein_per_serving: 25,
   carbs_per_serving: 40,
@@ -26,6 +27,7 @@ const COMPLEXITY_DESCRIPTIONS = {
 function buildPrompt(type, preferences, context = {}) {
   const prefs = { ...DEFAULT_PREFERENCES, ...preferences };
   const dietary = Array.isArray(prefs.dietary_restrictions) ? prefs.dietary_restrictions.join(', ') : (prefs.dietary_restrictions || '');
+  const allergies = Array.isArray(prefs.allergies) ? prefs.allergies.join(', ') : (prefs.allergies || '');
   const macros = `Protein: ${prefs.protein_per_serving}g, Carbs: ${prefs.carbs_per_serving}g, Fat: ${prefs.fat_per_serving}g per serving.`;
   const people = prefs.people_per_meal || 1;
 
@@ -56,6 +58,7 @@ CRITICAL RULES:
 
 CONSTRAINTS:
 - Dietary restrictions: ${dietary || 'None'}
+- Allergies (must avoid): ${allergies || 'None'}
 - Target macronutrients per serving: ${macros}
 - Servings per meal: ${people}
 
@@ -77,7 +80,7 @@ Return ONLY valid JSON, no markdown or extra text.`;
 
 Meals with their complexity: ${mealList}
 
-Constraints: Dietary restrictions: ${dietary || 'None'}. Target macros per serving: ${macros}. Servings: ${people} per meal.
+Constraints: Dietary restrictions: ${dietary || 'None'}. Allergies (must avoid): ${allergies || 'None'}. Target macros per serving: ${macros}. Servings: ${people} per meal.
 
 UNIT SYSTEM: ${unitInstruction}
 
