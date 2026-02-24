@@ -126,3 +126,12 @@ food_planner_prototype/
 ## License
 
 MIT
+
+---
+
+## Keeping accounts and data across deploys
+
+If you deploy (e.g. to Railway) and accounts disappear after each new commit, the database file is being wiped on redeploy. **Use a persistent volume** and set the database path to a location on that volume so data survives updates.
+
+- **Railway:** See [DEPLOY.md](./DEPLOY.md) **Step 4: Persistent database** — add a volume at `/data` and set `DATABASE_PATH=/data/mealflow.db` in Variables, then redeploy.
+- **Other hosts:** Use whatever they provide for persistent disk (e.g. a volume or mounted path) and set `DATABASE_PATH` to a file path on that disk (e.g. `/data/mealflow.db`). Do **not** use a path inside your app directory, or it will be reset on each deploy.
