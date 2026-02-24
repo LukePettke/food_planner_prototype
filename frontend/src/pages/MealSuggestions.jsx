@@ -67,9 +67,26 @@ export default function MealSuggestions() {
               Two options per meal slot (based on your preferences). Drag meals into slots on the next screen.
             </p>
             {optionCounts && (
-              <p className="preview-counts">
-                {optionCounts.breakfast} breakfast · {optionCounts.lunch} lunch · {optionCounts.dinner} dinner options
-              </p>
+              <>
+                <p className="preview-counts">
+                  {optionCounts.breakfast} breakfast · {optionCounts.lunch} lunch · {optionCounts.dinner} dinner options
+                </p>
+                {suggestions?.mealsPerWeek && (() => {
+                  const slots = suggestions.mealsPerWeek;
+                  const expected = {
+                    breakfast: (slots.breakfast || 0) * 2,
+                    lunch: (slots.lunch || 0) * 2,
+                    dinner: (slots.dinner || 0) * 2,
+                  };
+                  const actual = { breakfast: optionCounts.breakfast, lunch: optionCounts.lunch, dinner: optionCounts.dinner };
+                  const isShort = actual.breakfast < expected.breakfast || actual.lunch < expected.lunch || actual.dinner < expected.dinner;
+                  return isShort ? (
+                    <p className="preview-note">
+                      Based on your {slots.breakfast} breakfast, {slots.lunch} lunch, and {slots.dinner} dinner slots we aim for 2 options each ({expected.breakfast}, {expected.lunch}, {expected.dinner}). You got slightly fewer in some categories because of limited unique suggestions—you can still pick from what’s here or generate again.
+                    </p>
+                  ) : null;
+                })()}
+              </>
             )}
           </div>
           <Button variant="primary" onClick={handleContinue} className="continue-btn">

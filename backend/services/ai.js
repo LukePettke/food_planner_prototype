@@ -39,7 +39,7 @@ function buildPrompt(type, preferences, context = {}) {
   const people = prefs.people_per_meal || 1;
 
   if (type === 'meal_suggestions') {
-    const { mealType, countPerLevel, weekStart } = context;
+    const { mealType, countPerLevel, weekStart, excludeNames } = context;
     const mealLabel = mealType.charAt(0).toUpperCase() + mealType.slice(1);
     const total = Object.values(countPerLevel || {}).reduce((a, b) => a + b, 0);
     const levelParts = countPerLevel && total > 0
@@ -54,7 +54,7 @@ function buildPrompt(type, preferences, context = {}) {
       : `Generate ${total} options. Each meal object MUST include "complexity" (string: one of quick_easy, everyday, from_scratch).`;
 
     return `You are a nutritionist and meal planning expert. Generate exactly ${total} UNIQUE ${mealLabel.toLowerCase()} meal options for the week of ${weekStart}.
-
+${Array.isArray(excludeNames) && excludeNames.length > 0 ? `Do NOT suggest any of these (we already have them): ${excludeNames.slice(0, 50).join(', ')}. Suggest completely different options.\n\n` : ''}
 CRITICAL RULES:
 - Every option must be completely different - NO duplicate or near-duplicate meal names (e.g. do not include both "Scrambled Eggs" and "Scrambled Eggs with Toast")
 - For "quick_easy" / Quick & Easy options ONLY: use simple, familiar dish names like Eggs and Bacon, Pancakes, Cereal, Oatmeal, Toast, Ham and Cheese Sandwich, Grilled Cheese, PB&J, Pizza, Burger, Hot Dog, Chicken Fingers, Steak, Mac and Cheese, Spaghetti, Tacos. Do NOT use elaborate names, "bowls", avocado toast, quinoa, or gourmet-style dishes for quick_easy.
@@ -179,6 +179,31 @@ function shuffleWithSeed(arr, seed) {
   });
 }
 
+/** Return up to `count` fallback meal options (name, description, etc.) that are not in excludeNames. Used to pad when AI/library don't yield enough. */
+export function getFallbackMealOptions(mealType, count, excludeNames = []) {
+  const seen = new Set((excludeNames || []).map((n) => (n || '').trim().toLowerCase()).filter(Boolean));
+  const quick = QUICK_EASY_POOLS[mealType] || QUICK_EASY_POOLS.dinner;
+  const everyday = MOCK_POOLS[mealType] || MOCK_POOLS.dinner;
+  const fromScratch = FROM_SCRATCH_POOLS[mealType] || FROM_SCRATCH_POOLS.dinner;
+  const combined = [...quick, ...everyday, ...fromScratch];
+  const shuffled = shuffleWithSeed(combined, Date.now() % 10000);
+  const out = [];
+  for (const name of shuffled) {
+    if (out.length >= count) break;
+    const key = name.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      name,
+      description: `Simple ${mealType} option.`,
+      estimatedPrepMinutes: 20,
+      tags: ['fallback'],
+      complexity: 'everyday',
+    });
+  }
+  return out;
+}
+
 function mockMealSuggestions(mealType, countPerLevel, weekStart = '') {
   const count = totalCountFromPerLevel(countPerLevel);
   if (count <= 0) return [];
@@ -247,7 +272,7 @@ function totalCountFromPerLevel(countPerLevel) {
   return Object.values(countPerLevel).reduce((a, b) => a + (Number(b) || 0), 0);
 }
 
-export async function getMealSuggestions(preferences, mealType, countPerLevel, weekStart) {
+export async function getMealSuggestions(preferences, mealType, countPerLevel, weekStart, excludeNames = []) {
   const count = totalCountFromPerLevel(countPerLevel);
   if (count <= 0) return [];
 
@@ -258,7 +283,7 @@ export async function getMealSuggestions(preferences, mealType, countPerLevel, w
     return mockMealSuggestions(mealType, perLevel, weekStart);
   }
   try {
-    const prompt = buildPrompt('meal_suggestions', preferences, { mealType, countPerLevel, weekStart });
+    const prompt = buildPrompt('meal_suggestions', preferences, { mealType, countPerLevel, weekStart, excludeNames });
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],

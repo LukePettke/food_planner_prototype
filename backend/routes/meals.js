@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getDb } from '../db.js';
 import { randomUUID } from 'crypto';
-import { getMealSuggestions, getRecipes, getShoppingList } from '../services/ai.js';
+import { getMealSuggestions, getRecipes, getShoppingList, getFallbackMealOptions } from '../services/ai.js';
 import { addImagesToOptions } from '../services/images.js';
 import { format, addDays, startOfWeek, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 
@@ -154,16 +154,17 @@ router.post('/suggest', async (req, res) => {
         const levels = Array.isArray(prefs.meal_complexity_levels) && prefs.meal_complexity_levels.length > 0
           ? prefs.meal_complexity_levels
           : ['quick_easy', 'everyday', 'from_scratch'];
-        const countPerLevel = splitCountByLevel(needFromAi, levels);
+        const askFromAi = needFromAi + 4;
+        const countPerLevel = splitCountByLevel(askFromAi, levels);
         if (process.env.NODE_ENV !== 'production') {
-          console.log(`[meals/suggest] ${mealType}: ${fromLibrary.length} from library, ${needFromAi} from AI`, countPerLevel);
+          console.log(`[meals/suggest] ${mealType}: ${fromLibrary.length} from library, up to ${askFromAi} from AI`, countPerLevel);
         }
         fromAi = await getMealSuggestions(prefs, mealType, countPerLevel, weekLabel);
         saveMealsToLibrary(mealType, fromAi);
       }
 
       const seen = new Set();
-      const combined = [];
+      let combined = [];
       for (const m of [...fromLibrary, ...fromAi]) {
         const key = (m?.name || '').trim().toLowerCase();
         if (!key || seen.has(key)) continue;
@@ -171,7 +172,40 @@ router.post('/suggest', async (req, res) => {
         combined.push(m);
         if (combined.length >= count) break;
       }
-      const optionsWithImages = await addImagesToOptions(combined, mealType);
+
+      const levels = Array.isArray(prefs.meal_complexity_levels) && prefs.meal_complexity_levels.length > 0
+        ? prefs.meal_complexity_levels
+        : ['quick_easy', 'everyday', 'from_scratch'];
+      for (let r = 0; r < 3 && combined.length < count; r++) {
+        const gap = count - combined.length;
+        const existingNames = combined.map((m) => (m?.name || '').trim()).filter(Boolean);
+        const askMore = gap + 3;
+        const countPerLevel = splitCountByLevel(askMore, levels);
+        const moreFromAi = await getMealSuggestions(prefs, mealType, countPerLevel, weekLabel, existingNames);
+        saveMealsToLibrary(mealType, moreFromAi);
+        for (const m of moreFromAi) {
+          const key = (m?.name || '').trim().toLowerCase();
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          combined.push(m);
+          if (combined.length >= count) break;
+        }
+      }
+
+      if (combined.length < count) {
+        const existingNames = combined.map((m) => (m?.name || '').trim()).filter(Boolean);
+        const pad = getFallbackMealOptions(mealType, count - combined.length, existingNames);
+        for (const m of pad) {
+          const key = (m?.name || '').trim().toLowerCase();
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          combined.push(m);
+          if (combined.length >= count) break;
+        }
+      }
+
+      const final = combined.slice(0, count);
+      const optionsWithImages = await addImagesToOptions(final, mealType);
       results[`${mealType}Options`] = optionsWithImages;
     }
 
