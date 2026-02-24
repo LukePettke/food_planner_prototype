@@ -6,6 +6,13 @@ const router = Router();
 // In production, you'd integrate with actual APIs (Instacart, Amazon Fresh, etc.)
 const GROCERY_APPS = [
   {
+    id: 'heb',
+    name: 'HEB',
+    url: 'https://www.heb.com',
+    description: 'HEB grocery delivery and curbside',
+    icon: '🛒',
+  },
+  {
     id: 'instacart',
     name: 'Instacart',
     url: 'https://www.instacart.com',
