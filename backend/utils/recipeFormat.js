@@ -2,7 +2,8 @@
  * Format recipe ingredient amounts as fractions and normalize units.
  * - Countable items (eggs, peppers, onions, etc.): whole numbers only (2.5 → 3, 0.67 → 1).
  * - No fractions smaller than ¼ (no ⅛).
- * - Replace vague units: handful → cup, dash/pinch → ¼ tsp.
+ * - Replace vague units: handful → cup, dash/pinch → tsp, serving(s) → cup (or tbsp when tiny).
+ * - Only standard units: tbsp, tsp, cups, oz, lb (and countable: slice, clove, stalk, head, medium, etc.).
  */
 
 const FRACTIONS = [
@@ -45,10 +46,9 @@ const UNIT_NORMALIZE = {
   medium: 'medium',
   large: 'large',
   small: 'small',
-  serving: 'serving',
-  servings: 'servings',
   bunch: 'bunch',
   head: 'head',
+  heads: 'heads',
   can: 'can',
   package: 'package',
 };
@@ -62,8 +62,8 @@ const COUNTABLE_KEYWORDS = [
   'chicken breast', 'fillet', 'steak', 'patty', 'sausage', 'bun', 'pita',
 ];
 
-/** Units that indicate countable items. */
-const COUNTABLE_UNITS = new Set(['clove', 'cloves', 'stalk', 'stalks', 'slice', 'slices', 'medium', 'large', 'small', 'serving', 'servings']);
+/** Units that indicate countable items (amount rounded to whole or ½, ⅓, ¼). */
+const COUNTABLE_UNITS = new Set(['clove', 'cloves', 'stalk', 'stalks', 'slice', 'slices', 'medium', 'large', 'small', 'head', 'heads', 'bunch']);
 
 function isCountable(name, unit) {
   const n = (name || '').toLowerCase();
@@ -100,7 +100,8 @@ export function amountToFraction(amount) {
 }
 
 /**
- * Normalize unit: standard terms only. Handful → cup, dash/pinch → tsp (caller should set amount ¼).
+ * Normalize unit: standard terms only. Handful → cup, dash/pinch → tsp, serving(s) → cup or tbsp.
+ * "medium head" / "large head" → "head" (countable).
  */
 export function normalizeUnit(unit) {
   if (unit == null || typeof unit !== 'string') return '';
@@ -109,41 +110,68 @@ export function normalizeUnit(unit) {
   const key = u.replace(/\.$/, '');
   if (key === 'handful' || key === 'handfuls') return key === 'handfuls' ? 'cups' : 'cup';
   if (key === 'dash' || key === 'dashes' || key === 'pinch' || key === 'pinches') return 'tsp';
+  if (key === 'serving' || key === 'servings') return 'cup';
+  if (key === 'medium head' || key === 'large head' || key === 'small head') return 'head';
   return UNIT_NORMALIZE[key] || unit.trim();
 }
 
 /**
- * Format one ingredient: whole numbers for countable items, no ⅛, no handful/dash.
+ * Parse amount from API: number or fraction string like "1/2", "1/3", "1/4".
+ */
+function parseAmount(val) {
+  if (val == null) return null;
+  if (typeof val === 'number' && !Number.isNaN(val)) return val;
+  const s = String(val).trim();
+  const m = s.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (m) return Number(m[1]) / Number(m[2]);
+  const n = Number(s);
+  return Number.isNaN(n) ? null : n;
+}
+
+/**
+ * Format one ingredient: whole numbers or ½, ⅓, ¼ for measurable; whole numbers for countable. No handful/dash/servings.
  */
 export function formatIngredient(ing) {
   if (!ing || typeof ing !== 'object') return ing;
-  let amount = ing.amount != null ? Number(ing.amount) : null;
+  let amount = parseAmount(ing.amount ?? ing.totalAmount);
   let unit = (ing.unit || '').trim().toLowerCase();
   const name = ing.name || 'ingredient';
 
   if (amount == null || Number.isNaN(amount)) {
     return {
       name,
-      amount: ing.amount ?? '',
+      amount: ing.amount ?? ing.totalAmount ?? '',
       unit: normalizeUnit(ing.unit) || undefined,
     };
   }
 
   if (unit === 'handful' || unit === 'handfuls') {
     unit = unit === 'handfuls' ? 'cups' : 'cup';
-    amount = amount < 1 && amount > 0 ? 1 : Math.round(amount);
+    amount = amount < 1 && amount > 0 ? 1 : amount;
   } else if (unit === 'dash' || unit === 'dashes' || unit === 'pinch' || unit === 'pinches') {
     unit = 'tsp';
     amount = 0.25;
+  } else if (unit === 'serving' || unit === 'servings') {
+    if (amount > 0 && amount < 0.125) {
+      unit = 'tbsp';
+      amount = Math.max(0.25, amount * 16);
+    } else {
+      unit = 'cup';
+    }
   } else {
     unit = normalizeUnit(ing.unit || '');
   }
 
   if (isCountable(name, unit)) {
-    amount = amount > 0 && amount < 1 ? 1 : Math.round(amount);
+    amount = amount > 0 && amount < 0.5 ? 0.5 : amount;
+    const displayAmount = amount >= 1 && amount <= 1.05
+      ? '1'
+      : amount < 1
+        ? amountToFraction(amount)
+        : String(Math.floor(amount)) + (amount % 1 > 0.1 ? amountToFraction(amount % 1) : '');
     return {
       name,
-      amount: String(amount),
+      amount: displayAmount,
       unit: unit || undefined,
     };
   }

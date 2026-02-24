@@ -1,8 +1,13 @@
 import OpenAI from 'openai';
 import { getDb } from '../db.js';
 import { getRecipeForMeal, hasApi as hasSpoonacular } from './spoonacular.js';
+import { formatRecipeIngredients } from '../utils/recipeFormat.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
+
+function hasOpenAIKey() {
+  return !!(process.env.OPENAI_API_KEY || '').trim();
+}
 
 const DEFAULT_PREFERENCES = {
   breakfasts_per_week: 7,
@@ -87,22 +92,22 @@ Constraints: Dietary restrictions: ${dietary || 'None'}. Allergies (must avoid):
 
 UNIT SYSTEM: ${unitInstruction}
 
-Return a JSON array of objects, one per meal in the same order as the list above, each with:
-- name (string)
-- ingredients (array of objects: { name, amount, unit } for ${people} servings — use only the unit system specified above)
-- instructions (array of numbered steps as strings)
+Return a JSON object with a single key "recipes" whose value is an array of objects, one per meal in the same order as the list above. Each object must have:
+- name (string) — the meal name
+- ingredients (array of objects with name, amount, unit — real ingredient names like "eggs", "bacon", "butter"; use the unit system above)
+- instructions (array of strings — specific steps like "Cook bacon in a skillet until crispy, 8 min.")
 - prepMinutes (number)
 - cookMinutes (number)
 - macronutrients (object: protein, carbs, fat in grams per serving)
 
-Return ONLY valid JSON, no markdown or extra text.`;
+Return ONLY this JSON object, no other text.`;
   }
 
   if (type === 'shopping_list') {
     const { recipes } = context;
     const ingredients = recipes.flatMap((r) => r.ingredients || []);
     const useMetric = (prefs.recipe_units || 'imperial') === 'metric';
-    const unitNote = useMetric ? 'Keep amounts in metric (ml, g, kg).' : 'Keep amounts in imperial (cups, tbsp, oz, lb).';
+    const unitNote = useMetric ? 'Keep amounts in metric (ml, g, kg). Use whole numbers or simple fractions (½, ⅓, ¼) only.' : 'Keep amounts in imperial (cups, tbsp, tsp, oz, lb) only. Use whole numbers or simple fractions (½, ⅓, ¼) only. Do NOT use handful, pinch, dash, or serving/servings—use tbsp, tsp, cups, oz, lb, or countable units (slice, medium, etc.) as appropriate.';
     return `Consolidate these ingredients into a single shopping list for ${people} people.
 
 Ingredients (from multiple recipes): ${JSON.stringify(ingredients)}
@@ -222,7 +227,9 @@ function mockShoppingList(recipes) {
     const key = ing.name?.toLowerCase() || 'unknown';
     if (!seen.has(key)) seen.set(key, { ...ing, category: 'pantry' });
   }
-  return Array.from(seen.values()).map((i) => ({ name: i.name, totalAmount: i.amount, unit: i.unit, category: i.category }));
+  const raw = Array.from(seen.values()).map((i) => ({ name: i.name, amount: i.amount ?? i.totalAmount, unit: i.unit, category: i.category }));
+  const formatted = formatRecipeIngredients(raw);
+  return formatted.map((item, i) => ({ ...item, totalAmount: item.amount, category: raw[i]?.category || 'pantry' }));
 }
 
 function deduplicateOptions(options) {
@@ -244,7 +251,7 @@ export async function getMealSuggestions(preferences, mealType, countPerLevel, w
   const count = totalCountFromPerLevel(countPerLevel);
   if (count <= 0) return [];
 
-  if (!openai.apiKey) {
+  if (!hasOpenAIKey()) {
     const perLevel = countPerLevel && totalCountFromPerLevel(countPerLevel) > 0
       ? countPerLevel
       : { everyday: count };
@@ -277,7 +284,7 @@ export async function getMealSuggestions(preferences, mealType, countPerLevel, w
 
 export async function getImageSearchQueries(mealOptions, mealType) {
   // Without OpenAI, use meal name only so Pexels gets a clear dish-specific query (no noisy description)
-  if (!openai.apiKey || !Array.isArray(mealOptions) || mealOptions.length === 0) {
+  if (!hasOpenAIKey() || !Array.isArray(mealOptions) || mealOptions.length === 0) {
     return (mealOptions || []).map((n) => {
       const name = n && typeof n === 'object' ? n.name : n;
       return (name || '').trim() || 'food dish';
@@ -338,23 +345,60 @@ export async function getRecipes(preferences, meals) {
 
   // 2) Fill misses with AI-generated recipes, or mock if no OpenAI key
   let fallbackRecipes = [];
-  if (openai.apiKey) {
+  if (hasOpenAIKey()) {
     try {
       const prompt = buildPrompt('recipes', preferences, { meals: missedMeals });
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
+        response_format: { type: 'json_object' },
       });
-      const text = completion.choices[0]?.message?.content?.trim() || '[]';
-      const cleaned = text.replace(/^```json\s*|\s*```$/g, '');
-      fallbackRecipes = JSON.parse(cleaned);
-      if (!Array.isArray(fallbackRecipes)) fallbackRecipes = [];
+      const text = completion.choices[0]?.message?.content?.trim() || '';
+      if (!text) {
+        console.warn('AI recipes: empty response from OpenAI');
+        fallbackRecipes = mockRecipes(missedMeals, recipeUnits);
+      } else {
+        let cleaned = text
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/\s*```$/g, '')
+          .trim();
+        cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
+        try {
+          let parsed = null;
+          try {
+            parsed = JSON.parse(cleaned);
+          } catch (_) {
+            const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+            if (arrayMatch) parsed = JSON.parse(arrayMatch[0].replace(/,(\s*[}\]])/g, '$1'));
+          }
+          if (Array.isArray(parsed)) {
+            fallbackRecipes = parsed;
+          } else if (parsed && Array.isArray(parsed.recipes)) {
+            fallbackRecipes = parsed.recipes;
+          } else {
+            fallbackRecipes = [];
+          }
+        } catch (parseErr) {
+          console.error('AI recipes: JSON parse failed', parseErr.message);
+          console.error('AI recipes: response preview (first 500 chars):', cleaned.substring(0, 500));
+          fallbackRecipes = mockRecipes(missedMeals, recipeUnits);
+        }
+        if (!Array.isArray(fallbackRecipes)) fallbackRecipes = [];
+        fallbackRecipes.forEach((r) => {
+          if (r && Array.isArray(r.ingredients)) r.ingredients = formatRecipeIngredients(r.ingredients);
+        });
+        if (fallbackRecipes.length > 0) {
+          console.log(`AI recipes: got ${fallbackRecipes.length} recipe(s) from OpenAI for meals: ${missedMeals.map((m) => m.name).join(', ')}`);
+        }
+      }
     } catch (err) {
       console.error('AI recipes error:', err.message);
+      console.error('AI recipes: using mock recipes. Check OPENAI_API_KEY and network.');
       fallbackRecipes = mockRecipes(missedMeals, recipeUnits);
     }
   } else {
+    console.warn('AI recipes: OPENAI_API_KEY not set, using mock recipes');
     fallbackRecipes = mockRecipes(missedMeals, recipeUnits);
   }
 
@@ -370,7 +414,7 @@ export async function getRecipes(preferences, meals) {
 }
 
 export async function getShoppingList(preferences, recipes) {
-  if (!openai.apiKey) {
+  if (!hasOpenAIKey()) {
     return mockShoppingList(recipes);
   }
   try {
@@ -382,7 +426,14 @@ export async function getShoppingList(preferences, recipes) {
     });
     const text = completion.choices[0]?.message?.content?.trim() || '[]';
     const cleaned = text.replace(/^```json\s*|\s*```$/g, '');
-    return JSON.parse(cleaned);
+    const list = JSON.parse(cleaned);
+    if (!Array.isArray(list)) return list;
+    const formatted = formatRecipeIngredients(list);
+    return formatted.map((item, i) => ({
+      ...item,
+      totalAmount: item.amount,
+      category: list[i]?.category || item.category || 'other',
+    }));
   } catch (err) {
     console.error('AI shopping list error:', err.message);
     return mockShoppingList(recipes);

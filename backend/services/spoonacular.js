@@ -4,6 +4,7 @@
  */
 
 const BASE = 'https://api.spoonacular.com';
+import { formatRecipeIngredients } from '../utils/recipeFormat.js';
 
 function getApiKey() {
   return (process.env.SPOONACULAR_API_KEY || '').trim();
@@ -139,7 +140,7 @@ function mapToAppRecipe(data, preferences) {
       amount = ing.measures.us.amount;
       unit = ing.measures.us.unitShort || ing.measures.us.unitLong || unit;
     }
-    amount = Math.round((amount * scale) * 100) / 100;
+    amount = amount * scale;
     return {
       name: ing.name || ing.originalName || 'ingredient',
       amount: amount,
@@ -147,8 +148,10 @@ function mapToAppRecipe(data, preferences) {
     };
   });
 
+  const formattedIngredients = formatRecipeIngredients(ingredients);
+
   const steps = (data.analyzedInstructions || [])[0]?.steps || [];
-  const instructions = steps
+  let instructions = steps
     .sort((a, b) => (a.number || 0) - (b.number || 0))
     .map((s) => (s.step || '').trim())
     .filter(Boolean);
@@ -183,7 +186,7 @@ function mapToAppRecipe(data, preferences) {
 
   return {
     name: data.title || 'Recipe',
-    ingredients,
+    ingredients: formattedIngredients,
     instructions,
     prepMinutes,
     cookMinutes,
