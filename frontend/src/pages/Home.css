@@ -16,6 +16,9 @@
   color: var(--color-charcoal);
   margin-bottom: 1rem;
   line-height: 1.25;
+  border-bottom: 3px solid var(--color-navy);
+  display: inline-block;
+  padding-bottom: 0.25rem;
 }
 
 .hero-subtitle {
@@ -151,13 +154,13 @@
 
 .previous-plans-link {
   font-size: 0.9375rem;
-  color: var(--color-terracotta-dark);
-  font-weight: 500;
+  color: var(--color-navy-light);
+  font-weight: 600;
 }
 
 .previous-plans-link:hover {
   text-decoration: underline;
-  color: var(--color-charcoal);
+  color: var(--color-blue-accent);
 }
 
 .previous-plans-delete {
@@ -203,6 +206,9 @@
   font-size: 1.5rem;
   color: var(--color-charcoal);
   margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--color-navy-light);
+  font-weight: 700;
 }
 
 .steps-grid {
@@ -218,8 +224,9 @@
 
 .step-card h3 {
   font-size: 1.125rem;
-  color: var(--color-charcoal);
+  color: var(--color-navy);
   margin-bottom: 0.5rem;
+  font-weight: 700;
 }
 
 .step-card p {
@@ -235,7 +242,7 @@
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  background: var(--color-terracotta);
+  background: var(--color-navy);
   color: var(--color-cream);
   border-radius: 50%;
   font-weight: 700;

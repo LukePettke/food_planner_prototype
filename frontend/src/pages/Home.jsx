@@ -66,7 +66,7 @@ export default function Home() {
   return (
     <div className="home">
       <section className="hero">
-        <h1 className="hero-title">AI-Powered Weekly Meal Planning</h1>
+        <h1 className="hero-title">From Tech to Table</h1>
         <p className="hero-subtitle">
           Customize your preferences, get personalized meal suggestions, pick your favorites, and get recipes plus a shopping list—all in one place.
         </p>
@@ -177,7 +177,7 @@ export default function Home() {
       </section>
 
       <section className="steps">
-        <h2 className="steps-title">How It Works</h2>
+        <h2 className="steps-title">As Easy as 1, 2, 3</h2>
         <div className="steps-grid">
           <Card className="step-card">
             <span className="step-num">1</span>

@@ -1,4 +1,4 @@
-# Deploy Meal Planner to Production
+# Deploy MealFlow to Production
 
 Your app uses:
 - **Frontend:** React + Vite
@@ -75,14 +75,14 @@ Your app is built to run as a **single** service (backend serves the built front
 
 ## Step 4: Persistent database (so data isn’t lost on redeploy)
 
-SQLite stores data in a file. By default the app uses `backend/data/mealplanner.db`. On Railway, the disk is reset on deploy unless you use a **volume**.
+SQLite stores data in a file. By default the app uses `backend/data/mealflow.db`. On Railway, the disk is reset on deploy unless you use a **volume**.
 
 1. In your Railway project, open your service.  
 2. Go to the **“Volumes”** tab.  
 3. Click **“Add Volume”**.  
 4. Mount path: `/data`  
 5. In **Variables**, add:
-   - `DATABASE_PATH` = `/data/mealplanner.db`  
+   - `DATABASE_PATH` = `/data/mealflow.db`  
 6. Redeploy so the app starts with the volume mounted. The database file will now persist across deploys.
 
 ---
@@ -90,7 +90,7 @@ SQLite stores data in a file. By default the app uses `backend/data/mealplanner.
 ## Step 5: Test production
 
 1. Open the URL Railway gave you (e.g. `https://your-app.up.railway.app`).  
-2. You should see the Meal Planner UI.  
+2. You should see the MealFlow UI.  
 3. Use the app (preferences, plan, meals, etc.).  
 4. If something breaks, check the **“Deployments”** tab → latest deployment → **“View Logs”** for errors.
 
@@ -105,6 +105,6 @@ SQLite stores data in a file. By default the app uses `backend/data/mealplanner.
 | Build | `npm run build` (builds frontend, copies into backend) |
 | Start | `npm start` (runs backend; serves API + frontend) |
 | Env | `NODE_ENV=production` + your API keys in Railway Variables |
-| DB | Add a volume at `/data` and set `DATABASE_PATH=/data/mealplanner.db` |
+| DB | Add a volume at `/data` and set `DATABASE_PATH=/data/mealflow.db` |
 
 After this, you’ll have a single production URL. When you’re ready, you can point your GoDaddy domain to that URL in Railway’s **Settings → Domains** and set the same domain (or a subdomain) in GoDaddy’s DNS.

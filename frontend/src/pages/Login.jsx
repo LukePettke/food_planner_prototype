@@ -16,6 +16,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
+  const redirectTo = '/';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,7 +28,7 @@ export default function Login() {
       } else {
         await login(email.trim(), password);
       }
-      navigate(from, { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       const msg = err.message || 'Something went wrong';
       const isNetwork = msg === 'Failed to fetch' || msg === 'Not Found' || msg.includes('Load failed');
@@ -44,8 +45,8 @@ export default function Login() {
       <div className="login-card-wrap">
         <Card className="login-card">
           <div className="login-header">
-            <span className="login-logo">🍽</span>
-            <h1 className="login-title">Meal Planner</h1>
+            <img src="/mealflow-logo.png" alt="MealFlow" className="login-logo-img" />
+            <h1 className="login-title">MealFlow</h1>
             <p className="login-subtitle">
               {isSignUp ? 'Create an account to save your preferences and plans.' : 'Sign in to access your meal plans and preferences.'}
             </p>

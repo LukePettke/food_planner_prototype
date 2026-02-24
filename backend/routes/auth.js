@@ -13,7 +13,7 @@ router.get('/me', optionalAuth, (req, res) => {
     return res.json({ user: null });
   }
   const db = getDb();
-  const row = db.prepare('SELECT id, email, created_at FROM users WHERE id = ?').get(req.user.id);
+  const row = db.prepare('SELECT id, email, created_at, first_name, last_name, birthday FROM users WHERE id = ?').get(req.user.id);
   if (!row) {
     return res.json({ user: null });
   }
@@ -22,6 +22,9 @@ router.get('/me', optionalAuth, (req, res) => {
       id: row.id,
       email: row.email,
       createdAt: row.created_at,
+      firstName: row.first_name ?? '',
+      lastName: row.last_name ?? '',
+      birthday: row.birthday ?? '',
     },
   });
 });
@@ -56,7 +59,7 @@ router.post('/signup', async (req, res) => {
     const token = signToken(id);
     res.cookie(COOKIE_NAME, token, getSessionCookieOptions());
     res.status(201).json({
-      user: { id, email: emailTrim, createdAt: new Date().toISOString() },
+      user: { id, email: emailTrim, createdAt: new Date().toISOString(), firstName: '', lastName: '', birthday: '' },
     });
   } catch (err) {
     console.error('Signup error:', err);
@@ -74,7 +77,7 @@ router.post('/login', async (req, res) => {
     }
 
     const db = getDb();
-    const row = db.prepare('SELECT id, email, password_hash, created_at FROM users WHERE email = ?').get(emailTrim);
+    const row = db.prepare('SELECT id, email, password_hash, created_at, first_name, last_name, birthday FROM users WHERE email = ?').get(emailTrim);
     if (!row) {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
@@ -87,7 +90,14 @@ router.post('/login', async (req, res) => {
     const token = signToken(row.id);
     res.cookie(COOKIE_NAME, token, getSessionCookieOptions());
     res.json({
-      user: { id: row.id, email: row.email, createdAt: row.created_at },
+      user: {
+        id: row.id,
+        email: row.email,
+        createdAt: row.created_at,
+        firstName: row.first_name ?? '',
+        lastName: row.last_name ?? '',
+        birthday: row.birthday ?? '',
+      },
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -100,5 +110,38 @@ router.post('/logout', (req, res) => {
   res.clearCookie(COOKIE_NAME, { path: '/', httpOnly: true, sameSite: 'lax' });
   res.json({ ok: true });
 });
+
+// PATCH or POST /api/auth/profile - update profile (first name, last name, birthday)
+function handleProfileUpdate(req, res) {
+  try {
+    const { firstName, lastName, birthday } = req.body;
+    const db = getDb();
+    db.prepare(
+      'UPDATE users SET first_name = ?, last_name = ?, birthday = ? WHERE id = ?'
+    ).run(
+      firstName ?? '',
+      lastName ?? '',
+      birthday ?? '',
+      req.user.id
+    );
+    const row = db.prepare('SELECT id, email, created_at, first_name, last_name, birthday FROM users WHERE id = ?').get(req.user.id);
+    res.json({
+      user: {
+        id: row.id,
+        email: row.email,
+        createdAt: row.created_at,
+        firstName: row.first_name ?? '',
+        lastName: row.last_name ?? '',
+        birthday: row.birthday ?? '',
+      },
+    });
+  } catch (err) {
+    console.error('Profile update error:', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+router.patch('/profile', requireAuth, handleProfileUpdate);
+router.post('/profile', requireAuth, handleProfileUpdate);
 
 export default router;

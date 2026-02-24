@@ -36,7 +36,7 @@ export default function MealSuggestions() {
 
   return (
     <div className="meal-suggestions-page">
-      <h1 className="page-title">Generate Meal Options</h1>
+      <h1 className="page-title">MealPlan</h1>
       <p className="page-subtitle">
         AI will suggest meal options for each breakfast, lunch, and dinner slot based on your preferences.
       </p>

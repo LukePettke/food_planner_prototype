@@ -44,12 +44,24 @@ export function initDb(path) {
   } catch (_) {
     // Column already exists
   }
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN first_name TEXT`);
+  } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN last_name TEXT`);
+  } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN birthday TEXT`);
+  } catch (_) {}
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
+      first_name TEXT,
+      last_name TEXT,
+      birthday TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

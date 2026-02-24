@@ -21,17 +21,26 @@
   margin-bottom: 1.75rem;
 }
 
-.login-logo {
+.login-logo,
+.login-logo-img {
   font-size: 2.5rem;
   display: block;
   margin-bottom: 0.5rem;
 }
 
+.login-logo-img {
+  width: 80px;
+  height: auto;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .login-title {
   font-family: var(--font-display);
   font-size: 1.75rem;
-  color: var(--color-charcoal);
+  color: var(--color-navy);
   margin-bottom: 0.5rem;
+  font-weight: 700;
 }
 
 .login-subtitle {
@@ -74,8 +83,8 @@
 
 .login-input:focus {
   outline: none;
-  border-color: var(--color-terracotta);
-  box-shadow: 0 0 0 3px rgba(196, 167, 125, 0.2);
+  border-color: var(--color-blue-accent);
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.2);
 }
 
 .login-input::placeholder {

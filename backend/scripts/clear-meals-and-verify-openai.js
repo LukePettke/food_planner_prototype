@@ -17,7 +17,7 @@ async function main() {
   const { initDb, getDb } = await import('../db.js');
   const { verifyOpenAIKey } = await import('../services/ai.js');
 
-  const dbPath = process.env.DATABASE_PATH || join(__dirname, '..', 'data', 'mealplanner.db');
+  const dbPath = process.env.DATABASE_PATH || join(__dirname, '..', 'data', 'mealflow.db');
   initDb(dbPath);
 
   console.log('Checking OpenAI API key...');

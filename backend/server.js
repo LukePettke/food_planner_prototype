@@ -41,7 +41,13 @@ app.use((req, res, next) => {
 });
 
 // Initialize database (use env for path in production so volume can be mounted)
-const dbPath = process.env.DATABASE_PATH || join(__dirname, 'data', 'mealplanner.db');
+const dataDir = join(__dirname, 'data');
+let dbPath = process.env.DATABASE_PATH;
+if (!dbPath) {
+  const legacyPath = join(dataDir, 'mealplanner.db');
+  const newPath = join(dataDir, 'mealflow.db');
+  dbPath = existsSync(legacyPath) ? legacyPath : newPath;
+}
 initDb(dbPath);
 
 // API routes (auth is public; others require login)

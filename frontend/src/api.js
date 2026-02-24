@@ -18,6 +18,7 @@ export const auth = {
   login: (email, password) => fetchApi('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   signup: (email, password) => fetchApi('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => fetchApi('/auth/logout', { method: 'POST', body: '{}' }),
+  updateProfile: (body) => fetchApi('/auth/profile', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 export const preferences = {

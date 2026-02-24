@@ -1,18 +1,30 @@
 :root {
-  --color-cream: #FDF8F3;
-  --color-warm-white: #FFFBF7;
-  --color-terracotta: #C4A77D;
-  --color-terracotta-dark: #9B7B4F;
-  --color-sage: #6B7B6B;
+  /* Greens: lime → spring → true → forest → dark (food vibe) */
+  --color-cream: #F5FAF5;
+  --color-warm-white: #FFFEF9;
+  --color-lime: #C8E06C;
+  --color-spring: #7CB342;
+  --color-leaf: #2E7D32;
+  --color-forest: #1B5E20;
+  --color-dark-green: #0D3D0D;
   --color-charcoal: #2D2A26;
-  --color-brown: #4A4039;
-  --color-accent: #D4A574;
+  --color-sage: #6B7B6B;
+  --color-accent: #E8A838;
+  --color-accent-teal: #2D8B7A;
+  /* Navy / blue (logo accent) */
+  --color-navy: #1a3a52;
+  --color-navy-light: #2c5282;
+  --color-blue-accent: #3182ce;
+  /* Legacy aliases (green equivalents) */
+  --color-brown: var(--color-forest);
+  --color-terracotta: var(--color-spring);
+  --color-terracotta-dark: var(--color-leaf);
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-display: 'Playfair Display', Georgia, serif;
   --radius: 12px;
   --radius-lg: 16px;
-  --shadow: 0 4px 24px rgba(45, 42, 38, 0.08);
-  --shadow-lg: 0 8px 40px rgba(45, 42, 38, 0.12);
+  --shadow: 0 4px 24px rgba(13, 61, 13, 0.08);
+  --shadow-lg: 0 8px 40px rgba(13, 61, 13, 0.12);
 }
 
 * {
@@ -44,10 +56,18 @@ input, select, textarea {
 }
 
 a {
-  color: var(--color-terracotta-dark);
+  color: var(--color-navy-light);
   text-decoration: none;
 }
 
 a:hover {
+  color: var(--color-blue-accent);
   text-decoration: underline;
+}
+
+.page-title {
+  color: var(--color-navy);
+  font-weight: 700;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid var(--color-navy-light);
 }

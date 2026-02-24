@@ -205,6 +205,33 @@ export default function Preferences() {
       </Card>
 
       <Card className="pref-section">
+        <h2 className="section-title">Recipe Style</h2>
+        <p className="section-desc">Choose one or more styles. You’ll get an equal mix of each selected level in your meal suggestions.</p>
+        <div className="complexity-options">
+          {MEAL_COMPLEXITY_OPTIONS.map((opt) => {
+            const selected = prefs.meal_complexity_levels || [];
+            const isChecked = selected.includes(opt.id);
+            const isOnlyOne = isChecked && selected.length === 1;
+            return (
+            <label key={opt.id} className={`complexity-option ${isChecked ? 'checked' : ''} ${isOnlyOne ? 'only-one' : ''}`}>
+              <input
+                type="checkbox"
+                checked={isChecked}
+                disabled={isOnlyOne}
+                onChange={() => toggleMealComplexity(opt.id)}
+                title={isOnlyOne ? 'At least one style must be selected' : undefined}
+              />
+              <span className="complexity-text">
+                <span className="complexity-label">{opt.label}</span>
+                <span className="complexity-desc">{opt.description}</span>
+              </span>
+            </label>
+            );
+          })}
+        </div>
+      </Card>
+
+      <Card className="pref-section">
         <h2 className="section-title">Recipe Units</h2>
         <p className="section-desc">Choose which measurement system to use in generated recipes and the shopping list.</p>
         <div className="unit-options">
@@ -230,80 +257,6 @@ export default function Preferences() {
             <span className="unit-label">Metric</span>
             <span className="unit-example">e.g. ml, g, kg, °C</span>
           </label>
-        </div>
-      </Card>
-
-      <Card className="pref-section">
-        <h2 className="section-title">Dietary Restrictions</h2>
-        <p className="section-desc">Select any that apply. AI will avoid these ingredients or adapt recipes.</p>
-        <div className="dietary-grid">
-          {DIETARY_OPTIONS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              className={`dietary-chip ${prefs.dietary_restrictions.includes(d) ? 'active' : ''}`}
-              onClick={() => toggleDietary(d)}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
-        <h3 className="allergies-subtitle">Allergies</h3>
-        <p className="section-desc">Type an allergy and click Add. Meals and recipes will exclude these ingredients.</p>
-        <div className="allergies-add-row">
-          <input
-            type="text"
-            className="allergy-input"
-            placeholder="e.g. Peanut, shellfish, dairy"
-            value={allergyInput}
-            onChange={(e) => setAllergyInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addAllergy())}
-          />
-          <Button type="button" variant="secondary" onClick={addAllergy}>Add</Button>
-        </div>
-        {prefs.allergies.length > 0 && (
-          <div className="dietary-grid allergies-list">
-            {prefs.allergies.map((a) => (
-              <span key={a} className="allergy-chip">
-                {a}
-                <button
-                  type="button"
-                  className="allergy-chip-remove"
-                  onClick={() => removeAllergy(a)}
-                  aria-label={`Remove ${a}`}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      <Card className="pref-section">
-        <h2 className="section-title">Recipe Style</h2>
-        <p className="section-desc">Choose one or more styles. You’ll get an equal mix of each selected level in your meal suggestions.</p>
-        <div className="complexity-options">
-          {MEAL_COMPLEXITY_OPTIONS.map((opt) => {
-            const selected = prefs.meal_complexity_levels || [];
-            const isChecked = selected.includes(opt.id);
-            const isOnlyOne = isChecked && selected.length === 1;
-            return (
-            <label key={opt.id} className={`complexity-option ${isChecked ? 'checked' : ''} ${isOnlyOne ? 'only-one' : ''}`}>
-              <input
-                type="checkbox"
-                checked={isChecked}
-                disabled={isOnlyOne}
-                onChange={() => toggleMealComplexity(opt.id)}
-                title={isOnlyOne ? 'At least one style must be selected' : undefined}
-              />
-              <span className="complexity-text">
-                <span className="complexity-label">{opt.label}</span>
-                <span className="complexity-desc">{opt.description}</span>
-              </span>
-            </label>
-            );
-          })}
         </div>
       </Card>
 
@@ -347,6 +300,53 @@ export default function Preferences() {
                   type="button"
                   className="allergy-chip-remove"
                   onClick={() => removeAppliance(a)}
+                  aria-label={`Remove ${a}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card className="pref-section">
+        <h2 className="section-title">Dietary Restrictions</h2>
+        <p className="section-desc">Select any that apply. AI will avoid these ingredients or adapt recipes.</p>
+        <div className="dietary-grid">
+          {DIETARY_OPTIONS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              className={`dietary-chip ${prefs.dietary_restrictions.includes(d) ? 'active' : ''}`}
+              onClick={() => toggleDietary(d)}
+            >
+              {d}
+            </button>
+          ))}
+        </div>
+        <h3 className="allergies-subtitle">Allergies</h3>
+        <p className="section-desc">Type an allergy and click Add. Meals and recipes will exclude these ingredients.</p>
+        <div className="allergies-add-row">
+          <input
+            type="text"
+            className="allergy-input"
+            placeholder="e.g. Peanut, shellfish, dairy"
+            value={allergyInput}
+            onChange={(e) => setAllergyInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addAllergy())}
+          />
+          <Button type="button" variant="secondary" onClick={addAllergy}>Add</Button>
+        </div>
+        {prefs.allergies.length > 0 && (
+          <div className="dietary-grid allergies-list">
+            {prefs.allergies.map((a) => (
+              <span key={a} className="allergy-chip">
+                {a}
+                <button
+                  type="button"
+                  className="allergy-chip-remove"
+                  onClick={() => removeAllergy(a)}
                   aria-label={`Remove ${a}`}
                 >
                   ×

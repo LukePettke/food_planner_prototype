@@ -1,4 +1,4 @@
-# Meal Planner — AI-Powered Weekly Food Plan
+# MealFlow — AI-Powered Weekly Food Plan
 
 A full-stack web app that uses AI to generate personalized meal plans. Customize your preferences (meals per week, people, dietary restrictions, macros), get AI meal suggestions, pick your meals, receive recipes and a shopping list, and connect to Google Calendar and grocery delivery apps.
 
