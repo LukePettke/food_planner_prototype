@@ -128,6 +128,7 @@ export function initDb(path) {
       name TEXT NOT NULL,
       description TEXT,
       tags TEXT DEFAULT '[]',
+      complexity_level TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_meal_library_type ON meal_library(meal_type);
